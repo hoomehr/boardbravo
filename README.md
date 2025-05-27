@@ -1,6 +1,6 @@
 # 🧠 BoardBravo - AI-Powered Board Document Assistant
 
-BoardBravo is an intelligent document analysis platform designed specifically for board meetings and corporate governance. Upload your board materials and get instant AI-powered insights, summaries, and analysis using Google's Gemini AI (free tier supported).
+BoardBravo is an intelligent document analysis platform designed specifically for board meetings and corporate governance. Upload your board materials and get instant AI-powered insights, summaries, and analysis using Google's latest Gemini 2.0 Flash-Lite AI (free tier supported).
 
 ## ✨ Features
 
@@ -11,7 +11,7 @@ BoardBravo is an intelligent document analysis platform designed specifically fo
 - **Multiple File Formats**: Support for .pdf, .xlsx, .xls, .csv, .pptx, .ppt
 
 ### 🤖 AI Assistant (Multi-Provider Support)
-- **Google Gemini**: Free tier API support as primary provider
+- **Google Gemini 2.0 Flash-Lite**: Latest cost-efficient model with free tier API support as primary provider
 - **OpenAI GPT**: Optional premium provider support
 - **Anthropic Claude**: Ready for future integration
 - **Intelligent Analysis**: Specialized prompts for board governance

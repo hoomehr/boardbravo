@@ -15,7 +15,8 @@ class GeminiProvider implements AIProvider {
 
   async generateResponse(message: string, context?: string): Promise<string> {
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-pro' })
+      // Using the latest Gemini 2.0 Flash-Lite model for cost efficiency
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' })
 
       const systemPrompt = `You are BoardBravo, an AI assistant specialized in analyzing board meeting documents and corporate governance materials. You help board members, executives, and governance professionals by:
 
@@ -40,10 +41,28 @@ ${context ? `\nDocument Context:\n${context}` : '\nNo documents have been upload
       
       const result = await model.generateContent(fullPrompt)
       const response = await result.response
-      return response.text()
+      const text = response.text()
+      return text
     } catch (error) {
-      console.error('Gemini API error:', error)
-      throw new Error('Failed to generate response with Gemini')
+      console.error('Gemini API error:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        error: error
+      })
+      
+      // Check for specific Gemini error types
+      if (error instanceof Error) {
+        if (error.message.includes('API_KEY_INVALID')) {
+          throw new Error('Invalid Gemini API key. Please check your GOOGLE_AI_API_KEY.')
+        }
+        if (error.message.includes('QUOTA_EXCEEDED')) {
+          throw new Error('Gemini API quota exceeded. Please try again later.')
+        }
+        if (error.message.includes('SAFETY')) {
+          throw new Error('Content blocked by Gemini safety filters. Please try rephrasing your request.')
+        }
+      }
+      
+      throw new Error(`Failed to generate response with Gemini: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 }
