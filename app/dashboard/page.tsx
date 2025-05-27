@@ -22,6 +22,8 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useDropzone } from 'react-dropzone'
+import ChartRenderer from '@/components/charts/ChartRenderer'
+import SummaryCard from '@/components/charts/SummaryCard'
 
 interface Document {
   id: string
@@ -33,11 +35,35 @@ interface Document {
   extractedText?: string
 }
 
+interface ChartData {
+  type: 'bar' | 'line' | 'pie' | 'area'
+  title: string
+  data: any[]
+  xKey?: string
+  yKey?: string
+  description?: string
+}
+
+interface SummaryMetric {
+  title: string
+  value: string | number
+  change?: number
+  changeType?: 'positive' | 'negative' | 'neutral'
+  icon?: 'revenue' | 'users' | 'target' | 'calendar' | 'warning' | 'success'
+  description?: string
+}
+
 interface ChatMessage {
   id: string
   type: 'user' | 'assistant'
   content: string
   timestamp: Date
+  charts?: ChartData[]
+  summary?: {
+    title: string
+    metrics: SummaryMetric[]
+    insights: string[]
+  }
 }
 
 interface AIProviderStatus {
@@ -52,7 +78,7 @@ export default function DashboardPage() {
     {
       id: '1',
       type: 'assistant',
-      content: "Hello! I'm your BoardBravo AI assistant powered by Google Gemini. Upload some documents and I'll help you analyze them. You can ask me to summarize board decks, extract key risks, identify trends, or prepare investment pitch summaries.",
+      content: "Hello! I'm your BoardBravo AI assistant powered by Google Gemini. Upload some documents and I'll help you analyze them with interactive charts and summaries. You can ask me to summarize board decks, extract key risks, identify trends, or prepare investment pitch summaries.",
       timestamp: new Date()
     }
   ])
@@ -178,7 +204,9 @@ export default function DashboardPage() {
           id: Math.random().toString(36).substr(2, 9),
           type: 'assistant',
           content: data.response,
-          timestamp: new Date()
+          timestamp: new Date(),
+          charts: data.charts,
+          summary: data.summary
         }
         setChatMessages(prev => [...prev, aiResponse])
       } else {
@@ -432,7 +460,7 @@ export default function DashboardPage() {
                   animate={{ opacity: 1, y: 0 }}
                   className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`flex items-start space-x-3 max-w-[80%] ${
+                  <div className={`flex items-start space-x-3 max-w-[90%] ${
                     message.type === 'user' ? 'flex-row-reverse space-x-reverse' : ''
                   }`}>
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
@@ -446,17 +474,37 @@ export default function DashboardPage() {
                         <Bot className="w-4 h-4 text-white" />
                       )}
                     </div>
-                    <div className={`rounded-2xl px-4 py-3 ${
-                      message.type === 'user'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-900'
-                    }`}>
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-                      <p className={`text-xs mt-2 ${
-                        message.type === 'user' ? 'text-blue-200' : 'text-gray-500'
+                    <div className="flex-1">
+                      <div className={`rounded-2xl px-4 py-3 ${
+                        message.type === 'user'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-900'
                       }`}>
-                        {message.timestamp.toLocaleTimeString()}
-                      </p>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                        <p className={`text-xs mt-2 ${
+                          message.type === 'user' ? 'text-blue-200' : 'text-gray-500'
+                        }`}>
+                          {message.timestamp.toLocaleTimeString()}
+                        </p>
+                      </div>
+                      
+                      {/* Render Summary Card */}
+                      {message.summary && (
+                        <div className="mt-4">
+                          <SummaryCard
+                            title={message.summary.title}
+                            metrics={message.summary.metrics}
+                            insights={message.summary.insights}
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Render Charts */}
+                      {message.charts && message.charts.map((chart, index) => (
+                        <div key={index} className="mt-4">
+                          <ChartRenderer chartData={chart} />
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </motion.div>
@@ -498,7 +546,7 @@ export default function DashboardPage() {
                           sendMessage()
                         }
                       }}
-                      placeholder="Ask me to summarize documents, find risks, analyze trends..."
+                      placeholder="Ask me to summarize documents, find risks, analyze trends, or create charts..."
                       className="w-full p-4 pr-12 border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       rows={3}
                       disabled={isProcessing || aiProviderStatus?.status === 'not_configured'}
@@ -521,9 +569,9 @@ export default function DashboardPage() {
                 </button>
               </div>
               <div className="mt-3 flex items-center space-x-4 text-sm text-gray-500">
-                <span>💡 Try: "Summarize the latest board deck"</span>
+                <span>💡 Try: "Create a revenue chart from the financial data"</span>
                 <span>•</span>
-                <span>"What are the top risks?"</span>
+                <span>"Show me a summary of key metrics"</span>
                 {aiProviderStatus?.status === 'not_configured' && (
                   <>
                     <span>•</span>

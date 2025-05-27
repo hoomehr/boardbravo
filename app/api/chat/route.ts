@@ -31,10 +31,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate response using the configured provider
-    const response = await aiProvider.generateResponse(message, documentContext)
+    const aiResponse = await aiProvider.generateResponse(message, documentContext)
 
     return NextResponse.json({ 
-      response,
+      response: aiResponse.text,
+      charts: aiResponse.charts,
+      summary: aiResponse.summary,
       provider: aiProvider.name,
       availableProviders: getAvailableProviders()
     })

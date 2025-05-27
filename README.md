@@ -1,6 +1,6 @@
 # 🧠 BoardBravo - AI-Powered Board Document Assistant
 
-BoardBravo is an intelligent document analysis platform designed specifically for board meetings and corporate governance. Upload your board materials and get instant AI-powered insights, summaries, and analysis using Google's latest Gemini 2.0 Flash-Lite AI (free tier supported).
+BoardBravo is an intelligent document analysis platform designed specifically for board meetings and corporate governance. Upload your board materials and get instant AI-powered insights, summaries, and **interactive visualizations** using Google's latest Gemini 2.0 Flash-Lite AI (free tier supported).
 
 ## ✨ Features
 
@@ -11,34 +11,35 @@ BoardBravo is an intelligent document analysis platform designed specifically fo
 - **Multiple File Formats**: Support for .pdf, .xlsx, .xls, .csv, .pptx, .ppt
 
 ### 🤖 AI Assistant (Multi-Provider Support)
-- **Google Gemini 2.0 Flash-Lite**: Latest cost-efficient model with free tier API support as primary provider
-- **OpenAI GPT**: Optional premium provider support
-- **Anthropic Claude**: Ready for future integration
-- **Intelligent Analysis**: Specialized prompts for board governance
-- **Natural Language Q&A**: Ask questions about your documents in plain English
-- **Contextual Responses**: AI understands document content and provides relevant insights
+- **Google Gemini 2.0 Flash-Lite**: Latest cost-efficient model (primary, free tier)
+- **OpenAI GPT-4**: Premium alternative for enhanced analysis
+- **Anthropic Claude**: Ready for integration (coming soon)
+- **Smart Provider Switching**: Automatic fallback and configuration detection
 
-### 💼 Sample Use Cases
-- "Summarize the latest board deck"
-- "What are the top 3 risks mentioned in this quarter's report?"
-- "Give me financial trend highlights from the last 3 board meetings"
-- "Prepare a summary of this investment pitch with pros and cons"
-- "Extract all action items from the meeting minutes"
-- "What are the key strategic initiatives mentioned?"
+### 📊 **NEW: Interactive Charts & Visualizations**
+- **Dynamic Chart Generation**: Bar charts, line graphs, pie charts, and area charts
+- **Financial Dashboards**: Revenue trends, expense analysis, and KPI tracking
+- **Risk Visualization**: Risk distribution, threat analysis, and mitigation tracking
+- **Performance Metrics**: Interactive summary cards with key insights
+- **Real-time Data**: Charts generated from document analysis and AI insights
 
-## 🚀 Getting Started
+### 🎯 Sample Queries with Visual Outputs
+- **"Show me a revenue chart"** → Bar chart with quarterly revenue growth + financial summary
+- **"Analyze our risk distribution"** → Pie chart with risk categories + risk assessment metrics
+- **"Create a performance dashboard"** → Multiple charts with KPI trends + summary cards
+- **"Generate financial summary"** → Comprehensive metrics dashboard with insights
+
+## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ 
-- npm or yarn
+- Node.js 18+ and npm
 - Google AI API key (free tier available)
-- Optional: OpenAI API key, Google Drive API credentials
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/yourusername/boardbravo.git
    cd boardbravo
    ```
 
@@ -51,28 +52,28 @@ BoardBravo is an intelligent document analysis platform designed specifically fo
    ```bash
    cp env.example .env.local
    ```
-   
-   Edit `.env.local` with your configuration:
-   ```env
-   # Primary AI Provider (Gemini - Free Tier)
+
+4. **Configure your AI provider** (choose one or more):
+
+   **Option A: Google Gemini (Recommended - Free Tier)**
+   ```bash
+   # Get your free API key from https://makersuite.google.com/app/apikey
    AI_PROVIDER=gemini
    GOOGLE_AI_API_KEY=your_google_ai_api_key_here
-   
-   # Optional - Additional AI Providers
-   OPENAI_API_KEY=your_openai_api_key_here
-   ANTHROPIC_API_KEY=your_anthropic_api_key_here
-   
-   # Optional - Google Drive integration
-   GOOGLE_CLIENT_ID=your_google_client_id
-   GOOGLE_CLIENT_SECRET=your_google_client_secret
-   NEXTAUTH_URL=http://localhost:3000
-   NEXTAUTH_SECRET=your_nextauth_secret
    ```
 
-4. **Get your Google AI API key (Free)**
-   - Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
-   - Create a new API key
-   - Copy it to your `.env.local` file
+   **Option B: OpenAI GPT-4**
+   ```bash
+   AI_PROVIDER=openai
+   OPENAI_API_KEY=your_openai_api_key_here
+   ```
+
+   **Option C: Multiple Providers**
+   ```bash
+   AI_PROVIDER=gemini
+   GOOGLE_AI_API_KEY=your_google_ai_api_key_here
+   OPENAI_API_KEY=your_openai_api_key_here
+   ```
 
 5. **Run the development server**
    ```bash
@@ -82,187 +83,120 @@ BoardBravo is an intelligent document analysis platform designed specifically fo
 6. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
 
-## 🛠️ Tech Stack
+## 📊 Chart & Visualization Features
 
-- **Framework**: Next.js 14 with App Router
-- **Frontend**: React 18, TypeScript, Tailwind CSS
-- **UI Components**: Radix UI primitives with custom design system
-- **Animations**: Framer Motion for smooth interactions
-- **AI Providers**: 
-  - Google Gemini Pro (Primary - Free tier)
-  - OpenAI GPT-4 (Optional)
-  - Anthropic Claude (Ready for integration)
-- **Document Processing**: pdf-parse, xlsx for text extraction
-- **File Upload**: react-dropzone with real-time processing
-- **Google Integration**: Google APIs for Drive access
+### Supported Chart Types
+- **Bar Charts**: Revenue analysis, expense tracking, comparative metrics
+- **Line Charts**: Trend analysis, performance over time, growth tracking
+- **Pie Charts**: Risk distribution, market share, category breakdowns
+- **Area Charts**: Cumulative data, volume analysis, stacked metrics
 
-## 📁 Project Structure
+### Interactive Summary Cards
+- **Key Metrics**: Revenue, users, market share, burn rate, compliance scores
+- **Trend Indicators**: Positive/negative changes with visual indicators
+- **Insights Panel**: AI-generated key takeaways and recommendations
+- **Icon-based Categories**: Visual categorization for quick recognition
+
+### Sample Visualizations
+Try these queries to see the chart functionality in action:
 
 ```
-boardbravo/
-├── app/                    # Next.js app directory
-│   ├── api/               # API routes
-│   │   ├── chat/          # Multi-provider AI chat endpoint
-│   │   ├── upload/        # Document upload & processing
-│   │   └── google-drive/  # Google Drive integration
-│   ├── dashboard/         # Main application interface
-│   ├── layout.tsx         # Root layout
-│   ├── page.tsx          # Landing page
-│   └── globals.css        # Design system
-├── components/ui/         # Reusable UI components
-├── lib/
-│   ├── ai-service.ts     # Multi-provider AI abstraction
-│   └── utils.ts          # Utility functions
-├── uploads/              # Document storage (auto-created)
-└── README.md             # This file
+"Create a revenue chart from the financial data"
+"Show me risk analysis with charts"
+"Generate a performance dashboard"
+"Display key metrics summary"
+"Analyze trends with visualizations"
 ```
 
-## 🔧 Configuration
+## 🎯 Use Cases
 
-### AI Provider Setup
+### Board Meeting Preparation
+- **Document Summarization**: Quick overviews of lengthy board packs
+- **Financial Analysis**: Revenue trends, expense analysis, budget variance
+- **Risk Assessment**: Visual risk matrices and mitigation strategies
+- **Performance Dashboards**: KPI tracking with interactive charts
 
-#### Google Gemini (Recommended - Free)
-1. Get API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Set `AI_PROVIDER=gemini` in `.env.local`
-3. Add `GOOGLE_AI_API_KEY=your_key` to `.env.local`
+### Investment Analysis
+- **Pitch Deck Analysis**: Key metrics extraction and visualization
+- **Market Analysis**: Competitive landscape and opportunity sizing
+- **Financial Projections**: Revenue forecasts and growth charts
+- **Due Diligence**: Risk assessment with visual breakdowns
 
-#### OpenAI (Optional - Paid)
-1. Get API key from [OpenAI Platform](https://platform.openai.com)
-2. Set `AI_PROVIDER=openai` in `.env.local`
-3. Add `OPENAI_API_KEY=your_key` to `.env.local`
+### Governance & Compliance
+- **Regulatory Compliance**: Tracking and reporting with metrics
+- **Policy Analysis**: Impact assessment and implementation tracking
+- **Audit Preparation**: Document organization and key findings visualization
+- **Strategic Planning**: Goal tracking and progress visualization
 
-#### Anthropic (Future Support)
-1. Get API key from [Anthropic Console](https://console.anthropic.com)
-2. Set `AI_PROVIDER=anthropic` in `.env.local`
-3. Add `ANTHROPIC_API_KEY=your_key` to `.env.local`
+## 🔧 AI Provider Configuration
+
+### Google Gemini (Free Tier)
+- **Cost**: Free up to generous limits
+- **Performance**: Fast and accurate for most use cases
+- **Setup**: Get API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+
+### OpenAI GPT-4
+- **Cost**: Pay-per-use pricing
+- **Performance**: Premium analysis capabilities
+- **Setup**: Get API key from [OpenAI Platform](https://platform.openai.com/api-keys)
 
 ### Provider Switching
-Change the `AI_PROVIDER` environment variable to switch between providers:
-- `gemini` - Google Gemini Pro (Free tier)
-- `openai` - OpenAI GPT-4 (Paid)
-- `anthropic` - Anthropic Claude (Paid)
-
-### Google Drive Integration (Optional)
-1. Create a project in [Google Cloud Console](https://console.cloud.google.com)
-2. Enable the Google Drive API
-3. Create OAuth 2.0 credentials
-4. Add the credentials to your `.env.local` file
-
-## 📋 API Endpoints
-
-### AI Chat
-```http
-GET /api/chat
-# Check AI provider status and available providers
-
-POST /api/chat
-Content-Type: application/json
-
-{
-  "message": "Summarize the board deck",
-  "documents": [/* array of uploaded documents */]
-}
+Change providers by updating the `AI_PROVIDER` environment variable:
+```bash
+AI_PROVIDER=gemini  # or openai, anthropic
 ```
 
-### Document Upload
-```http
-POST /api/upload
-Content-Type: multipart/form-data
+## 🛠️ Technical Stack
 
-# Upload and process document files
-```
+- **Frontend**: Next.js 14, React 18, TypeScript
+- **UI Components**: Radix UI, Tailwind CSS, Framer Motion
+- **Charts**: Recharts, Chart.js for interactive visualizations
+- **AI Integration**: Google Gemini Pro, OpenAI GPT-4, Anthropic Claude
+- **Document Processing**: pdf-parse, xlsx, react-dropzone
+- **Backend**: Next.js API routes with multi-provider support
 
-### Google Drive Integration
-```http
-GET /api/google-drive?access_token=token
-# List board-related documents
+## 📈 Performance & Scaling
 
-POST /api/google-drive
-Content-Type: application/json
-
-{
-  "fileId": "google_drive_file_id",
-  "accessToken": "user_access_token"
-}
-```
-
-## ⚡ Features in Action
-
-### Real-time Document Processing
-- Upload files via drag & drop
-- Watch processing status in real-time
-- Automatic text extraction from PDFs and Excel files
-- Error handling with retry mechanisms
-
-### Intelligent Chat Interface
-- Context-aware AI responses
-- Provider status indicators
-- Real-time typing indicators
-- Message history with timestamps
-
-### Multi-Provider AI Support
-- Seamless switching between AI providers
-- Provider status monitoring
-- Fallback handling for API errors
-- Cost optimization recommendations
-
-## 🎨 Design System
-
-BoardBravo uses a modern design system built with:
-- **Color Palette**: Blue and purple gradients with semantic tokens
-- **Typography**: Inter font family optimized for readability
-- **Components**: Consistent spacing, border radius, and interactions
-- **Responsive**: Mobile-first design that adapts to all screen sizes
-- **Accessibility**: WCAG compliant with keyboard navigation support
+- **Fast Response Times**: Optimized AI provider selection
+- **Efficient Processing**: Streaming document analysis
+- **Scalable Architecture**: Multi-provider support with fallbacks
+- **Cost Optimization**: Free tier prioritization with premium options
 
 ## 🚀 Deployment
 
-### Production Build
+### Vercel (Recommended)
 ```bash
 npm run build
-npm start
+vercel --prod
+```
+
+### Docker
+```bash
+docker build -t boardbravo .
+docker run -p 3000:3000 boardbravo
 ```
 
 ### Environment Variables for Production
-Set all required environment variables in your production environment:
-- `GOOGLE_AI_API_KEY` (required for Gemini)
-- `AI_PROVIDER` (defaults to 'gemini')
-- Additional provider keys as needed
-
-### Deployment Platforms
-- **Vercel**: Recommended for Next.js applications
-- **Netlify**: Alternative with serverless functions
-- **Docker**: Container support available
-- **AWS/GCP/Azure**: Enterprise deployment options
-
-## 💡 Tips for Best Results
-
-1. **Use Gemini for Cost-Effective Analysis**: The free tier provides excellent results for most board document analysis tasks
-2. **Upload Clear Documents**: Better document quality leads to better AI analysis
-3. **Be Specific in Queries**: Ask targeted questions for more precise responses
-4. **Organize Documents**: Group related documents for better context
-5. **Regular API Key Rotation**: Keep your API keys secure and rotate them regularly
+Ensure these are set in your deployment environment:
+- `AI_PROVIDER`
+- `GOOGLE_AI_API_KEY` (for Gemini)
+- `OPENAI_API_KEY` (for OpenAI)
+- `NEXTAUTH_SECRET` (for authentication)
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly with multiple AI providers
-5. Submit a pull request
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
 ## 📄 License
 
-This project is proprietary software. All rights reserved.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🆘 Support
 
-For support, please:
-- Check the AI provider status in the dashboard
-- Verify your API keys are correctly configured
-- Review the console for detailed error messages
-- Contact the development team for advanced issues
+- **Documentation**: Check our [Wiki](https://github.com/yourusername/boardbravo/wiki)
+- **Issues**: Report bugs on [GitHub Issues](https://github.com/yourusername/boardbravo/issues)
+- **Discussions**: Join our [GitHub Discussions](https://github.com/yourusername/boardbravo/discussions)
 
 ---
 
-**BoardBravo** - Transforming board meetings with multi-provider AI intelligence, starting with Google Gemini's free tier. 
+**Built with ❤️ for better board governance and decision-making** 
