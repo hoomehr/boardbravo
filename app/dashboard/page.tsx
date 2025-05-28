@@ -24,12 +24,22 @@ import {
   Server,
   Users,
   Building2,
-  Plug
+  Plug,
+  Trash2,
+  MessageCircle
 } from 'lucide-react'
 import Link from 'next/link'
 import { useDropzone } from 'react-dropzone'
 import ChartRenderer from '@/components/charts/ChartRenderer'
 import SummaryCard from '@/components/charts/SummaryCard'
+
+interface ChatSession {
+  id: string
+  title: string
+  messages: ChatMessage[]
+  createdAt: Date
+  updatedAt: Date
+}
 
 interface Document {
   id: string
@@ -89,6 +99,8 @@ interface Integration {
 
 export default function DashboardPage() {
   const [documents, setDocuments] = useState<Document[]>([])
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -159,7 +171,22 @@ export default function DashboardPage() {
     setIsClient(true)
     checkAIProviderStatus()
     checkIntegrationCallbacks()
+    loadChatSessions()
   }, [])
+
+  // Save chat sessions to localStorage
+  useEffect(() => {
+    if (chatSessions.length > 0) {
+      localStorage.setItem('boardbravo-chat-sessions', JSON.stringify(chatSessions))
+    }
+  }, [chatSessions])
+
+  // Save current session when messages change
+  useEffect(() => {
+    if (currentSessionId && chatMessages.length > 1) {
+      saveCurrentSession()
+    }
+  }, [chatMessages, currentSessionId])
 
   const checkAIProviderStatus = async () => {
     try {
@@ -317,6 +344,11 @@ export default function DashboardPage() {
 
   const sendMessage = async () => {
     if (!currentMessage.trim() || isProcessing) return
+
+    // Create a new session if none exists
+    if (!currentSessionId) {
+      createNewChatSession()
+    }
 
     const userMessage: ChatMessage = {
       id: Math.random().toString(36).substr(2, 9),
@@ -530,6 +562,93 @@ export default function DashboardPage() {
     }
   }
 
+  const loadChatSessions = () => {
+    try {
+      const saved = localStorage.getItem('boardbravo-chat-sessions')
+      if (saved) {
+        const sessions = JSON.parse(saved).map((session: any) => ({
+          ...session,
+          createdAt: new Date(session.createdAt),
+          updatedAt: new Date(session.updatedAt),
+          messages: session.messages.map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          }))
+        }))
+        setChatSessions(sessions)
+      }
+    } catch (error) {
+      console.error('Failed to load chat sessions:', error)
+    }
+  }
+
+  const createNewChatSession = () => {
+    const newSession: ChatSession = {
+      id: Math.random().toString(36).substr(2, 9),
+      title: `Chat ${chatSessions.length + 1}`,
+      messages: [
+        {
+          id: '1',
+          type: 'assistant',
+          content: "Hello! I'm your BoardBravo AI assistant powered by Google Gemini. I can help you with investment analysis, board governance, financial planning, and risk assessment. You can ask questions right away, or upload documents for specific analysis. I'll provide executive insights, create charts, and deliver actionable recommendations for board meetings and investor discussions.",
+          timestamp: new Date()
+        }
+      ],
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+
+    setChatSessions(prev => [newSession, ...prev])
+    setCurrentSessionId(newSession.id)
+    setChatMessages(newSession.messages)
+  }
+
+  const saveCurrentSession = () => {
+    if (!currentSessionId) return
+
+    setChatSessions(prev => prev.map(session => {
+      if (session.id === currentSessionId) {
+        const firstUserMessage = chatMessages.find(m => m.type === 'user')
+        const title = firstUserMessage 
+          ? firstUserMessage.content.substring(0, 50) + (firstUserMessage.content.length > 50 ? '...' : '')
+          : session.title
+
+        return {
+          ...session,
+          title,
+          messages: chatMessages,
+          updatedAt: new Date()
+        }
+      }
+      return session
+    }))
+  }
+
+  const switchToSession = (sessionId: string) => {
+    if (currentSessionId) {
+      saveCurrentSession()
+    }
+
+    const session = chatSessions.find(s => s.id === sessionId)
+    if (session) {
+      setCurrentSessionId(sessionId)
+      setChatMessages(session.messages)
+    }
+  }
+
+  const deleteSession = (sessionId: string) => {
+    setChatSessions(prev => prev.filter(s => s.id !== sessionId))
+    
+    if (currentSessionId === sessionId) {
+      const remainingSessions = chatSessions.filter(s => s.id !== sessionId)
+      if (remainingSessions.length > 0) {
+        switchToSession(remainingSessions[0].id)
+      } else {
+        createNewChatSession()
+      }
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Header */}
@@ -689,110 +808,176 @@ export default function DashboardPage() {
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-[calc(100vh-140px)]">
-          {/* Left Panel - Documents and Upload */}
+          {/* Left Panel - Chat History + Documents */}
           <div className="lg:col-span-1 bg-white rounded-2xl border border-gray-200 p-6 flex flex-col">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Documents</h2>
-              <button className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
-                <Folder className="w-5 h-5" />
-              </button>
+            {/* Chat History Section */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Chat History</h2>
+                <button 
+                  onClick={createNewChatSession}
+                  className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                  title="New Chat"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Chat Sessions List - Compact */}
+              <div className="max-h-48 overflow-y-auto space-y-2">
+                {chatSessions.length === 0 ? (
+                  <div className="text-center py-4 text-gray-500">
+                    <MessageCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                    <p className="text-sm">No chat history yet</p>
+                  </div>
+                ) : (
+                  chatSessions.map((session) => (
+                    <motion.div
+                      key={session.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`bg-gray-50 rounded-lg p-3 border transition-all cursor-pointer hover:shadow-md ${
+                        currentSessionId === session.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                      }`}
+                      onClick={() => switchToSession(session.id)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-gray-900 truncate text-xs">{session.title}</h3>
+                          <div className="flex items-center space-x-2 mt-1">
+                            <p className="text-xs text-gray-500">
+                              {session.messages.length - 1} msgs
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {session.updatedAt.toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            deleteSession(session.id)
+                          }}
+                          className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                          title="Delete Chat"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </div>
             </div>
 
-            {/* Upload Area */}
-            <div
-              {...getRootProps()}
-              className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 cursor-pointer mb-6 ${
-                isDragActive 
-                  ? 'border-blue-500 bg-blue-50' 
-                  : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-              }`}
-            >
-              <input {...getInputProps()} />
-              {isUploading ? (
-                <Loader2 className="w-12 h-12 text-blue-500 mx-auto mb-4 animate-spin" />
-              ) : (
-                <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              )}
-              <p className="text-gray-600 font-medium mb-2">
-                {isUploading ? 'Uploading files...' : 
-                 isDragActive ? 'Drop files here' : 'Drop files or click to upload'}
-              </p>
-              <p className="text-sm text-gray-500">
-                PDF, Excel, PowerPoint, CSV files
-              </p>
-            </div>
+            {/* Divider */}
+            <div className="border-t border-gray-200 mb-6"></div>
 
-            {/* Integration Quick Actions */}
-            <div className="space-y-3 mb-6">
-              <button
-                onClick={() => handleIntegrationConnect('gmail')}
-                className="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
-              >
-                <Mail className="w-5 h-5" />
-                <Plus className="w-4 h-4" />
-                <span>Gmail</span>
-              </button>
-              
-              <button
-                onClick={() => handleIntegrationConnect('hubspot')}
-                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
-              >
-                <Building2 className="w-5 h-5" />
-                <Plus className="w-4 h-4" />
-                <span>HubSpot CRM</span>
-              </button>
-              
-              <button
-                onClick={() => handleIntegrationConnect('google-drive')}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
-              >
-                <Folder className="w-5 h-5" />
-                <Plus className="w-4 h-4" />
-                <span>Google Drive</span>
-              </button>
-              
-              <button
-                onClick={() => handleIntegrationConnect('mcp-server')}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
-              >
-                <Server className="w-5 h-5" />
-                <Plus className="w-4 h-4" />
-                <span>MCP Server</span>
-              </button>
-            </div>
+            {/* Documents Section */}
+            <div className="flex-1 flex flex-col">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Documents</h2>
+                <button className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
+                  <Folder className="w-5 h-5" />
+                </button>
+              </div>
 
-            {/* Documents List */}
-            <div className="flex-1 overflow-y-auto space-y-3">
-              {documents.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  <p>No documents uploaded yet</p>
-                  <p className="text-sm">Upload files or connect integrations to get started</p>
-                </div>
-              ) : (
-                documents.map((doc) => (
-                  <motion.div
-                    key={doc.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-gray-50 rounded-lg p-4 border border-gray-200"
-                  >
-                    <div className="flex items-start space-x-3">
-                      <span className="text-2xl">{getFileIcon(doc.name)}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate">{doc.name}</p>
-                        <p className="text-sm text-gray-500">{formatFileSize(doc.size)}</p>
-                        <div className="flex items-center space-x-2 mt-2">
-                          <div className={`w-2 h-2 rounded-full ${getStatusColor(doc.status)}`} />
-                          <span className="text-xs text-gray-500 capitalize">
-                            {doc.status === 'processing' ? 'Processing...' : doc.status}
-                          </span>
+              {/* Upload Area */}
+              <div
+                {...getRootProps()}
+                className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 cursor-pointer mb-6 ${
+                  isDragActive 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+              >
+                <input {...getInputProps()} />
+                {isUploading ? (
+                  <Loader2 className="w-12 h-12 text-blue-500 mx-auto mb-4 animate-spin" />
+                ) : (
+                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                )}
+                <p className="text-gray-600 font-medium mb-2">
+                  {isUploading ? 'Uploading files...' : 
+                   isDragActive ? 'Drop files here' : 'Drop files or click to upload'}
+                </p>
+                <p className="text-sm text-gray-500">
+                  PDF, Excel, PowerPoint, CSV files
+                </p>
+              </div>
+
+              {/* Integration Quick Actions */}
+              <div className="space-y-3 mb-6">
+                <button
+                  onClick={() => handleIntegrationConnect('gmail')}
+                  className="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
+                >
+                  <Mail className="w-5 h-5" />
+                  <Plus className="w-4 h-4" />
+                  <span>Gmail</span>
+                </button>
+                
+                <button
+                  onClick={() => handleIntegrationConnect('hubspot')}
+                  className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
+                >
+                  <Building2 className="w-5 h-5" />
+                  <Plus className="w-4 h-4" />
+                  <span>HubSpot CRM</span>
+                </button>
+                
+                <button
+                  onClick={() => handleIntegrationConnect('google-drive')}
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
+                >
+                  <Folder className="w-5 h-5" />
+                  <Plus className="w-4 h-4" />
+                  <span>Google Drive</span>
+                </button>
+                
+                <button
+                  onClick={() => handleIntegrationConnect('mcp-server')}
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
+                >
+                  <Server className="w-5 h-5" />
+                  <Plus className="w-4 h-4" />
+                  <span>MCP Server</span>
+                </button>
+              </div>
+
+              {/* Documents List */}
+              <div className="flex-1 overflow-y-auto space-y-3">
+                {documents.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p>No documents uploaded yet</p>
+                    <p className="text-sm">Upload files or connect integrations to get started</p>
+                  </div>
+                ) : (
+                  documents.map((doc) => (
+                    <motion.div
+                      key={doc.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+                    >
+                      <div className="flex items-start space-x-3">
+                        <span className="text-2xl">{getFileIcon(doc.name)}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 truncate">{doc.name}</p>
+                          <p className="text-sm text-gray-500">{formatFileSize(doc.size)}</p>
+                          <div className="flex items-center space-x-2 mt-2">
+                            <div className={`w-2 h-2 rounded-full ${getStatusColor(doc.status)}`} />
+                            <span className="text-xs text-gray-500 capitalize">
+                              {doc.status === 'processing' ? 'Processing...' : doc.status}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                ))
-              )}
+                    </motion.div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
 
