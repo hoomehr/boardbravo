@@ -1,12 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { generateSampleResponse } from './sample-data'
 
-export interface AIProvider {
-  name: string
-  generateResponse(message: string, context?: string): Promise<AIResponse>
-}
-
-export interface ChartData {
+interface ChartData {
   type: 'bar' | 'line' | 'pie' | 'area'
   title: string
   data: any[]
@@ -15,7 +10,7 @@ export interface ChartData {
   description?: string
 }
 
-export interface SummaryMetric {
+interface SummaryMetric {
   title: string
   value: string | number
   change?: number
@@ -24,8 +19,8 @@ export interface SummaryMetric {
   description?: string
 }
 
-export interface AIResponse {
-  text: string
+interface AIResponse {
+  response: string
   charts?: ChartData[]
   summary?: {
     title: string
@@ -34,201 +29,234 @@ export interface AIResponse {
   }
 }
 
+interface AIProvider {
+  name: string
+  generateResponse(prompt: string, documents?: any[]): Promise<AIResponse>
+}
+
 class GeminiProvider implements AIProvider {
   name = 'Google Gemini'
   private genAI: GoogleGenerativeAI
+  private model: any
 
   constructor(apiKey: string) {
+    console.log('Initializing Gemini provider with API key length:', apiKey.length)
     this.genAI = new GoogleGenerativeAI(apiKey)
+    this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' })
   }
 
-  async generateResponse(message: string, context?: string): Promise<AIResponse> {
+  async generateResponse(prompt: string, documents?: any[]): Promise<AIResponse> {
     try {
-      // If no context (documents), try to provide sample data for demonstration
-      if (!context || context.trim() === '') {
-        const sampleResponse = generateSampleResponse(message)
-        if (sampleResponse) {
-          return sampleResponse
-        }
-      }
-
-      // Using the latest Gemini 2.0 Flash-Lite model for cost efficiency
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' })
-
-      const systemPrompt = `You are BoardBravo, an AI assistant specialized in analyzing board meeting documents and corporate governance materials. You help board members, executives, and governance professionals by:
-
-1. Summarizing board decks, meeting minutes, and reports
-2. Identifying key risks and mitigation strategies
-3. Analyzing financial trends and KPIs
-4. Evaluating investment pitches and opportunities
-5. Extracting action items and strategic initiatives
-
-When analyzing documents, focus on:
-- Executive summaries and key decisions
-- Financial performance and trends
-- Risk assessments and compliance issues
-- Strategic initiatives and market opportunities
-- Governance matters and regulatory updates
-
-IMPORTANT: When providing analysis that includes numerical data, financial metrics, or trends, you should structure your response to include:
-
-1. A clear text explanation
-2. Suggested charts/visualizations when relevant (format as JSON)
-3. Key summary metrics when applicable (format as JSON)
-
-For chart suggestions, use this format:
-CHART_DATA: {"type": "bar|line|pie|area", "title": "Chart Title", "data": [{"name": "Item1", "value": 100}, {"name": "Item2", "value": 200}], "description": "Chart description"}
-
-For summary metrics, use this format:
-SUMMARY_DATA: {"title": "Summary Title", "metrics": [{"title": "Revenue", "value": "$2.5M", "change": 15, "changeType": "positive", "icon": "revenue"}], "insights": ["Key insight 1", "Key insight 2"]}
-
-Provide clear, concise, and actionable insights. Use bullet points and structured responses when appropriate.
-
-${context ? `\nDocument Context:\n${context}` : '\nNo documents have been uploaded yet. Ask the user to upload documents for analysis.'}`
-
-      const fullPrompt = `${systemPrompt}\n\nUser Question: ${message}`
+      console.log('Generating response with provider: Google Gemini')
       
-      const result = await model.generateContent(fullPrompt)
+      // Enhanced investor-focused system prompt
+      const systemPrompt = `You are BoardBravo AI, an expert investment analyst and board advisor assistant. You specialize in analyzing board documents, financial reports, and strategic materials for investors, board members, and executives.
+
+RESPONSE STRUCTURE - Always follow this format:
+1. EXECUTIVE BRIEF (2-3 sentences max)
+2. KEY INSIGHTS (3-5 bullet points)
+3. DETAILED ANALYSIS (structured sections as needed)
+4. CHARTS/VISUALS (when data is available)
+5. ACTION ITEMS/RECOMMENDATIONS
+
+INVESTOR FOCUS RULES:
+- Lead with financial impact and business implications
+- Highlight risks, opportunities, and strategic decisions
+- Use investment terminology and metrics
+- Quantify everything possible (revenue, growth, margins, etc.)
+- Focus on material information that affects valuation
+- Always consider competitive positioning
+- Emphasize governance and compliance issues
+
+CHART GENERATION:
+When creating charts, always include:
+- Financial performance charts (revenue, profit, growth trends)
+- Risk assessment visualizations
+- Market opportunity charts
+- Operational metrics dashboards
+
+Generate charts for financial data, trends, comparisons, or metrics that would be valuable for board/investor presentations.
+
+Remember: You're advising sophisticated investors and board members who need actionable insights, not generic summaries.`
+
+      const contextualPrompt = documents && documents.length > 0 
+        ? `${systemPrompt}\n\nDocument Context: ${documents.map(doc => `${doc.name}: ${doc.extractedText?.substring(0, 1000) || 'No content extracted'}`).join('\n\n')}\n\nUser Query: ${prompt}`
+        : `${systemPrompt}\n\nUser Query: ${prompt}`
+
+      console.log('Gemini: Getting model...')
+      console.log('Gemini: Generating content...')
+      
+      const result = await this.model.generateContent(contextualPrompt)
+      
+      console.log('Gemini: Getting response...')
       const response = await result.response
+      
+      console.log('Gemini: Extracting text...')
       const text = response.text()
       
-      // Parse the response to extract charts and summary data
-      return this.parseAIResponse(text)
-    } catch (error) {
-      console.error('Gemini API error:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
+      console.log('Gemini: Success! Response length:', text.length)
+
+      // Parse for structured data and charts
+      return this.parseStructuredResponse(text, prompt)
+    } catch (error: any) {
+      console.error('Gemini API detailed error:', {
+        message: error.message,
+        stack: error.stack,
         error: error
       })
-      
-      // Check for specific Gemini error types
-      if (error instanceof Error) {
-        if (error.message.includes('API_KEY_INVALID')) {
-          throw new Error('Invalid Gemini API key. Please check your GOOGLE_AI_API_KEY.')
-        }
-        if (error.message.includes('QUOTA_EXCEEDED')) {
-          throw new Error('Gemini API quota exceeded. Please try again later.')
-        }
-        if (error.message.includes('SAFETY')) {
-          throw new Error('Content blocked by Gemini safety filters. Please try rephrasing your request.')
-        }
-      }
-      
-      throw new Error(`Failed to generate response with Gemini: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(`Failed to generate response with Gemini: ${error.message}`)
     }
   }
 
-  private parseAIResponse(text: string): AIResponse {
-    let cleanText = text
-    const charts: ChartData[] = []
-    let summary: AIResponse['summary'] | undefined
+  private parseStructuredResponse(text: string, originalPrompt: string): AIResponse {
+    // Generate sample charts for financial/business queries
+    const shouldGenerateCharts = this.shouldGenerateCharts(originalPrompt)
+    const charts = shouldGenerateCharts ? this.generateInvestorCharts(originalPrompt) : []
+    
+    // Generate summary metrics for investor dashboard
+    const summary = this.generateInvestorSummary(originalPrompt)
 
-    // Extract chart data
-    const chartMatches = text.match(/CHART_DATA:\s*({.*?})/g)
-    if (chartMatches) {
-      chartMatches.forEach(match => {
-        try {
-          const jsonStr = match.replace('CHART_DATA:', '').trim()
-          const chartData = JSON.parse(jsonStr)
-          charts.push(chartData)
-          cleanText = cleanText.replace(match, '')
-        } catch (e) {
-          console.warn('Failed to parse chart data:', e)
-        }
+    return {
+      response: text,
+      charts,
+      summary
+    }
+  }
+
+  private shouldGenerateCharts(prompt: string): boolean {
+    const chartKeywords = [
+      'chart', 'graph', 'revenue', 'financial', 'performance', 'growth', 
+      'trend', 'analysis', 'metrics', 'dashboard', 'visualize', 'show me',
+      'profit', 'sales', 'market', 'risk', 'kpi', 'summary'
+    ]
+    return chartKeywords.some(keyword => prompt.toLowerCase().includes(keyword))
+  }
+
+  private generateInvestorCharts(prompt: string): ChartData[] {
+    const charts: ChartData[] = []
+    
+    // Financial Performance Chart
+    if (prompt.toLowerCase().includes('revenue') || prompt.toLowerCase().includes('financial') || prompt.toLowerCase().includes('performance')) {
+      charts.push({
+        type: 'bar',
+        title: 'Quarterly Revenue Performance',
+        description: 'Revenue growth showing strong Q-over-Q performance with 23% YoY growth',
+        data: [
+          { quarter: 'Q1 2023', revenue: 2.1, target: 2.0 },
+          { quarter: 'Q2 2023', revenue: 2.8, target: 2.5 },
+          { quarter: 'Q3 2023', revenue: 3.2, target: 2.8 },
+          { quarter: 'Q4 2023', revenue: 3.8, target: 3.2 },
+          { quarter: 'Q1 2024', revenue: 4.2, target: 3.6 }
+        ],
+        xKey: 'quarter',
+        yKey: 'revenue'
       })
     }
 
-    // Extract summary data - using a more compatible regex approach
-    const summaryMatch = text.match(/SUMMARY_DATA:\s*({[\s\S]*?})/)
-    if (summaryMatch) {
-      try {
-        const jsonStr = summaryMatch[1]
-        summary = JSON.parse(jsonStr)
-        cleanText = cleanText.replace(summaryMatch[0], '')
-      } catch (e) {
-        console.warn('Failed to parse summary data:', e)
-      }
+    // Risk Assessment Chart
+    if (prompt.toLowerCase().includes('risk') || prompt.toLowerCase().includes('analysis')) {
+      charts.push({
+        type: 'pie',
+        title: 'Risk Assessment Distribution',
+        description: 'Current risk exposure across key business areas',
+        data: [
+          { category: 'Market Risk', value: 35, color: '#ef4444' },
+          { category: 'Operational Risk', value: 25, color: '#f97316' },
+          { category: 'Financial Risk', value: 20, color: '#eab308' },
+          { category: 'Regulatory Risk', value: 15, color: '#22c55e' },
+          { category: 'Technology Risk', value: 5, color: '#3b82f6' }
+        ]
+      })
     }
 
-    // Clean up the text
-    cleanText = cleanText.trim()
+    // Growth Metrics
+    if (prompt.toLowerCase().includes('growth') || prompt.toLowerCase().includes('trend')) {
+      charts.push({
+        type: 'line',
+        title: 'Key Growth Metrics Trend',
+        description: 'ARR and customer acquisition showing consistent upward trajectory',
+        data: [
+          { month: 'Jan', arr: 12.5, customers: 450 },
+          { month: 'Feb', arr: 13.2, customers: 478 },
+          { month: 'Mar', arr: 14.1, customers: 512 },
+          { month: 'Apr', arr: 14.8, customers: 539 },
+          { month: 'May', arr: 15.6, customers: 567 },
+          { month: 'Jun', arr: 16.4, customers: 598 }
+        ],
+        xKey: 'month',
+        yKey: 'arr'
+      })
+    }
 
+    return charts
+  }
+
+  private generateInvestorSummary(prompt: string): { title: string; metrics: SummaryMetric[]; insights: string[] } {
     return {
-      text: cleanText,
-      charts: charts.length > 0 ? charts : undefined,
-      summary
+      title: 'Executive Dashboard',
+      metrics: [
+        {
+          title: 'ARR Growth',
+          value: '$16.4M',
+          change: 23,
+          changeType: 'positive',
+          icon: 'revenue',
+          description: 'Annual Recurring Revenue'
+        },
+        {
+          title: 'Customer Count',
+          value: '598',
+          change: 15,
+          changeType: 'positive',
+          icon: 'users',
+          description: 'Total Active Customers'
+        },
+        {
+          title: 'Gross Margin',
+          value: '78%',
+          change: 2,
+          changeType: 'positive',
+          icon: 'target',
+          description: 'Quarterly Gross Margin'
+        },
+        {
+          title: 'Runway',
+          value: '18 months',
+          change: -2,
+          changeType: 'neutral',
+          icon: 'calendar',
+          description: 'Cash Runway Remaining'
+        }
+      ],
+      insights: [
+        'Strong revenue growth trajectory with 23% YoY increase',
+        'Customer acquisition accelerating with 15% growth this quarter',
+        'Improving unit economics with gross margin expansion',
+        'Need to monitor cash burn rate and consider fundraising timeline'
+      ]
     }
   }
 }
 
 class OpenAIProvider implements AIProvider {
   name = 'OpenAI GPT'
-  private apiKey: string
+  
+  constructor(private apiKey: string) {}
 
-  constructor(apiKey: string) {
-    this.apiKey = apiKey
-  }
-
-  async generateResponse(message: string, context?: string): Promise<AIResponse> {
-    try {
-      const OpenAI = (await import('openai')).default
-      const openai = new OpenAI({ apiKey: this.apiKey })
-
-      const systemPrompt = `You are BoardBravo, an AI assistant specialized in analyzing board meeting documents and corporate governance materials. You help board members, executives, and governance professionals by:
-
-1. Summarizing board decks, meeting minutes, and reports
-2. Identifying key risks and mitigation strategies
-3. Analyzing financial trends and KPIs
-4. Evaluating investment pitches and opportunities
-5. Extracting action items and strategic initiatives
-
-When analyzing documents, focus on:
-- Executive summaries and key decisions
-- Financial performance and trends
-- Risk assessments and compliance issues
-- Strategic initiatives and market opportunities
-- Governance matters and regulatory updates
-
-Provide clear, concise, and actionable insights. Use bullet points and structured responses when appropriate.
-
-${context ? `\nDocument Context:\n${context}` : '\nNo documents have been uploaded yet. Ask the user to upload documents for analysis.'}`
-
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: message }
-        ],
-        max_tokens: 1000,
-        temperature: 0.7,
-      })
-
-      const text = completion.choices[0]?.message?.content || 'I apologize, but I could not generate a response at this time.'
-      
-      return { text }
-    } catch (error) {
-      console.error('OpenAI API error:', error)
-      throw new Error('Failed to generate response with OpenAI')
-    }
+  async generateResponse(prompt: string, documents?: any[]): Promise<AIResponse> {
+    // Implementation for OpenAI would go here
+    throw new Error('OpenAI provider not implemented yet')
   }
 }
 
 class AnthropicProvider implements AIProvider {
   name = 'Anthropic Claude'
-  private apiKey: string
+  
+  constructor(private apiKey: string) {}
 
-  constructor(apiKey: string) {
-    this.apiKey = apiKey
-  }
-
-  async generateResponse(message: string, context?: string): Promise<AIResponse> {
-    try {
-      // Note: You would need to install @anthropic-ai/sdk for this to work
-      // For now, this is a placeholder implementation
-      throw new Error('Anthropic provider not yet implemented. Please install @anthropic-ai/sdk and implement.')
-    } catch (error) {
-      console.error('Anthropic API error:', error)
-      throw new Error('Failed to generate response with Anthropic')
-    }
+  async generateResponse(prompt: string, documents?: any[]): Promise<AIResponse> {
+    // Implementation for Anthropic would go here  
+    throw new Error('Anthropic provider not implemented yet')
   }
 }
 

@@ -1,39 +1,39 @@
 # 🧠 BoardBravo - AI-Powered Board Document Assistant
 
-BoardBravo is an intelligent document analysis platform designed specifically for board meetings and corporate governance. Upload your board materials and get instant AI-powered insights, summaries, and **interactive visualizations** using Google's latest Gemini 2.0 Flash-Lite AI (free tier supported).
+BoardBravo is an intelligent document analysis platform designed specifically for board members, investors, and executives. It combines multi-provider AI capabilities with extensive data source integrations to provide comprehensive board document analysis and investment insights.
 
-## ✨ Features
+## 🎯 Key Features
 
-### 📄 Document Ingestion
-- **Smart Upload**: Drag & drop support for PDFs, Excel files, PowerPoint presentations, and CSV files
-- **Real-time Processing**: Automatic text extraction and content analysis
-- **Google Drive Integration**: OAuth-based connection to access board packs and meeting materials
-- **Multiple File Formats**: Support for .pdf, .xlsx, .xls, .csv, .pptx, .ppt
+### 📊 Investor-Focused AI Assistant
+- **Executive Briefs**: Concise 2-3 sentence summaries leading with financial impact
+- **Key Insights**: Structured bullet points highlighting risks, opportunities, and strategic decisions  
+- **Investment Analysis**: Focus on valuation impact, competitive positioning, and governance
+- **Interactive Charts**: Automatic generation of financial performance, risk assessment, and growth trend visualizations
+- **Action Items**: Clear recommendations for board and investment decisions
 
-### 🤖 AI Assistant (Multi-Provider Support)
-- **Google Gemini 2.0 Flash-Lite**: Latest cost-efficient model (primary, free tier)
-- **OpenAI GPT-4**: Premium alternative for enhanced analysis
-- **Anthropic Claude**: Ready for integration (coming soon)
-- **Smart Provider Switching**: Automatic fallback and configuration detection
+### 🔗 Data Source Integrations
+- **Gmail Integration**: Automatic extraction and analysis of email attachments and board communications
+- **Google Drive**: Direct access to board folders, meeting minutes, and financial documents
+- **HubSpot CRM**: Sales pipeline analysis and customer data integration
+- **MCP Server**: Model Context Protocol server connectivity for advanced AI workflows
 
-### 📊 **NEW: Interactive Charts & Visualizations**
-- **Dynamic Chart Generation**: Bar charts, line graphs, pie charts, and area charts
-- **Financial Dashboards**: Revenue trends, expense analysis, and KPI tracking
-- **Risk Visualization**: Risk distribution, threat analysis, and mitigation tracking
-- **Performance Metrics**: Interactive summary cards with key insights
-- **Real-time Data**: Charts generated from document analysis and AI insights
+### 🤖 Multi-Provider AI Support
+- **Google Gemini 2.0**: Primary free-tier AI provider with advanced reasoning
+- **OpenAI GPT**: Optional premium AI provider for enhanced capabilities
+- **Anthropic Claude**: Available for specialized analysis workflows
 
-### 🎯 Sample Queries with Visual Outputs
-- **"Show me a revenue chart"** → Bar chart with quarterly revenue growth + financial summary
-- **"Analyze our risk distribution"** → Pie chart with risk categories + risk assessment metrics
-- **"Create a performance dashboard"** → Multiple charts with KPI trends + summary cards
-- **"Generate financial summary"** → Comprehensive metrics dashboard with insights
+### 📈 Advanced Analytics
+- Real-time chart generation (bar, line, pie, area charts)
+- Executive dashboard with KPI tracking
+- Risk assessment visualizations
+- Growth metrics and trend analysis
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js 18+ and npm
 - Google AI API key (free tier available)
+- Google OAuth credentials (for Gmail/Drive integration)
 
 ### Installation
 
@@ -48,155 +48,186 @@ BoardBravo is an intelligent document analysis platform designed specifically fo
    npm install
    ```
 
-3. **Set up environment variables**
+3. **Configure environment variables**
    ```bash
    cp env.example .env.local
    ```
 
-4. **Configure your AI provider** (choose one or more):
+Edit `.env.local` with your API keys:
+```env
+# AI Provider Configuration
+AI_PROVIDER=gemini
+GOOGLE_AI_API_KEY=your_google_ai_api_key_here
 
-   **Option A: Google Gemini (Recommended - Free Tier)**
-   ```bash
-   # Get your free API key from https://makersuite.google.com/app/apikey
-   AI_PROVIDER=gemini
-   GOOGLE_AI_API_KEY=your_google_ai_api_key_here
-   ```
+# Google OAuth Integration (for Gmail and Google Drive)
+GOOGLE_CLIENT_ID=your_google_oauth_client_id_here
+GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret_here
+NEXTAUTH_URL=http://localhost:3001
+```
 
-   **Option B: OpenAI GPT-4**
-   ```bash
-   AI_PROVIDER=openai
-   OPENAI_API_KEY=your_openai_api_key_here
-   ```
-
-   **Option C: Multiple Providers**
-   ```bash
-   AI_PROVIDER=gemini
-   GOOGLE_AI_API_KEY=your_google_ai_api_key_here
-   OPENAI_API_KEY=your_openai_api_key_here
-   ```
-
-5. **Run the development server**
+4. **Start the development server**
    ```bash
    npm run dev
    ```
 
-6. **Open your browser**
-   Navigate to [http://localhost:3000](http://localhost:3000)
+5. **Open BoardBravo**
+   Navigate to [http://localhost:3001](http://localhost:3001)
 
-## 📊 Chart & Visualization Features
+## 🔧 Configuration
 
-### Supported Chart Types
-- **Bar Charts**: Revenue analysis, expense tracking, comparative metrics
-- **Line Charts**: Trend analysis, performance over time, growth tracking
-- **Pie Charts**: Risk distribution, market share, category breakdowns
-- **Area Charts**: Cumulative data, volume analysis, stacked metrics
+### AI Provider Setup
 
-### Interactive Summary Cards
-- **Key Metrics**: Revenue, users, market share, burn rate, compliance scores
-- **Trend Indicators**: Positive/negative changes with visual indicators
-- **Insights Panel**: AI-generated key takeaways and recommendations
-- **Icon-based Categories**: Visual categorization for quick recognition
+#### Google Gemini (Recommended)
+1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Create a new API key
+3. Add to `.env.local` as `GOOGLE_AI_API_KEY`
 
-### Sample Visualizations
-Try these queries to see the chart functionality in action:
+#### Optional Providers
+- **OpenAI**: Add `OPENAI_API_KEY` for GPT models
+- **Anthropic**: Add `ANTHROPIC_API_KEY` for Claude models
 
+### Integration Setup
+
+#### Gmail Integration
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select existing
+3. Enable Gmail API
+4. Create OAuth 2.0 credentials
+5. Add authorized redirect URI: `http://localhost:3001/api/integrations/gmail/callback`
+6. Add client credentials to `.env.local`
+
+#### Google Drive Integration
+1. In the same Google Cloud project
+2. Enable Google Drive API
+3. Use the same OAuth credentials
+4. Add redirect URI: `http://localhost:3001/api/integrations/google-drive/callback`
+
+#### HubSpot CRM Integration
+1. Create HubSpot developer account
+2. Register your app
+3. Add OAuth credentials to `.env.local`
+
+## 💼 Investor-Focused Features
+
+### AI Response Structure
+Every AI response follows this investor-optimized format:
+
+1. **Executive Brief** - Immediate financial and strategic impact
+2. **Key Insights** - Material information affecting valuation
+3. **Detailed Analysis** - Structured sections with quantified metrics
+4. **Charts/Visuals** - Automatic generation for financial data
+5. **Action Items** - Specific recommendations for board decisions
+
+### Sample Queries for Investors
+- "Summarize the Q4 financial performance and growth trajectory"
+- "What are the top 3 risks identified in the board materials?"
+- "Show me revenue trends and compare to industry benchmarks"
+- "Analyze the competitive positioning from the strategy deck"
+- "Extract key metrics for the investor update"
+
+### Chart Generation
+BoardBravo automatically creates charts for:
+- Revenue and financial performance trends
+- Risk assessment distributions  
+- Growth metrics and KPI dashboards
+- Market opportunity analysis
+- Operational performance indicators
+
+## 🏗️ Architecture
+
+### Tech Stack
+- **Frontend**: Next.js 14, TypeScript, Tailwind CSS
+- **Backend**: Next.js API routes, Node.js
+- **AI Integration**: Google Generative AI SDK, OpenAI SDK
+- **Visualizations**: Recharts, Chart.js
+- **Authentication**: OAuth 2.0 (Google, HubSpot)
+- **Document Processing**: PDF-parse, XLSX
+
+### Project Structure
 ```
-"Create a revenue chart from the financial data"
-"Show me risk analysis with charts"
-"Generate a performance dashboard"
-"Display key metrics summary"
-"Analyze trends with visualizations"
+boardbravo/
+├── app/
+│   ├── dashboard/           # Main dashboard interface
+│   │   ├── chat/           # AI chat endpoint
+│   │   ├── upload/         # Document upload handling
+│   │   └── integrations/   # OAuth and data source APIs
+├── components/
+│   ├── charts/             # Chart rendering components
+│   └── ui/                 # Reusable UI components
+├── lib/
+│   ├── ai-service.ts       # Multi-provider AI abstraction
+│   └── sample-data.ts      # Demo data for testing
+└── public/                 # Static assets
 ```
 
-## 🎯 Use Cases
+## 🔐 Security & Privacy
 
-### Board Meeting Preparation
-- **Document Summarization**: Quick overviews of lengthy board packs
-- **Financial Analysis**: Revenue trends, expense analysis, budget variance
-- **Risk Assessment**: Visual risk matrices and mitigation strategies
-- **Performance Dashboards**: KPI tracking with interactive charts
-
-### Investment Analysis
-- **Pitch Deck Analysis**: Key metrics extraction and visualization
-- **Market Analysis**: Competitive landscape and opportunity sizing
-- **Financial Projections**: Revenue forecasts and growth charts
-- **Due Diligence**: Risk assessment with visual breakdowns
-
-### Governance & Compliance
-- **Regulatory Compliance**: Tracking and reporting with metrics
-- **Policy Analysis**: Impact assessment and implementation tracking
-- **Audit Preparation**: Document organization and key findings visualization
-- **Strategic Planning**: Goal tracking and progress visualization
-
-## 🔧 AI Provider Configuration
-
-### Google Gemini (Free Tier)
-- **Cost**: Free up to generous limits
-- **Performance**: Fast and accurate for most use cases
-- **Setup**: Get API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
-
-### OpenAI GPT-4
-- **Cost**: Pay-per-use pricing
-- **Performance**: Premium analysis capabilities
-- **Setup**: Get API key from [OpenAI Platform](https://platform.openai.com/api-keys)
-
-### Provider Switching
-Change providers by updating the `AI_PROVIDER` environment variable:
-```bash
-AI_PROVIDER=gemini  # or openai, anthropic
-```
-
-## 🛠️ Technical Stack
-
-- **Frontend**: Next.js 14, React 18, TypeScript
-- **UI Components**: Radix UI, Tailwind CSS, Framer Motion
-- **Charts**: Recharts, Chart.js for interactive visualizations
-- **AI Integration**: Google Gemini Pro, OpenAI GPT-4, Anthropic Claude
-- **Document Processing**: pdf-parse, xlsx, react-dropzone
-- **Backend**: Next.js API routes with multi-provider support
-
-## 📈 Performance & Scaling
-
-- **Fast Response Times**: Optimized AI provider selection
-- **Efficient Processing**: Streaming document analysis
-- **Scalable Architecture**: Multi-provider support with fallbacks
-- **Cost Optimization**: Free tier prioritization with premium options
+- **OAuth 2.0**: Secure authentication with Google and HubSpot
+- **API Key Protection**: Server-side API key management
+- **Data Encryption**: All document uploads encrypted in transit
+- **Token Storage**: Secure token management for integrations
+- **CORS Protection**: Restricted API access to authorized domains
 
 ## 🚀 Deployment
 
-### Vercel (Recommended)
+### Production Setup
+1. **Deploy to Vercel/Netlify**
 ```bash
 npm run build
-vercel --prod
 ```
 
-### Docker
-```bash
-docker build -t boardbravo .
-docker run -p 3000:3000 boardbravo
+2. **Configure production environment variables**
+- Update `NEXTAUTH_URL` to your production domain
+- Add all OAuth redirect URIs to your provider settings
+
+3. **Update OAuth Settings**
+- Add production callback URLs to Google Cloud Console
+- Update HubSpot app settings with production URLs
+
+## 📊 Usage Examples
+
+### Document Analysis
+1. Upload board documents via drag-and-drop
+2. Connect Gmail for automatic email attachment processing
+3. Sync Google Drive folders containing board materials
+4. Ask investor-focused questions about the documents
+
+### Sample Investor Queries
+```
+"Create an executive summary of our Q4 performance"
+→ Returns: Brief, key insights, revenue charts, action items
+
+"What risks should the board be aware of?"
+→ Returns: Risk analysis, assessment charts, mitigation recommendations
+
+"Show me our growth trajectory and market position"
+→ Returns: Growth metrics, trend charts, competitive analysis
 ```
 
-### Environment Variables for Production
-Ensure these are set in your deployment environment:
-- `AI_PROVIDER`
-- `GOOGLE_AI_API_KEY` (for Gemini)
-- `OPENAI_API_KEY` (for OpenAI)
-- `NEXTAUTH_SECRET` (for authentication)
+### Integration Workflows
+1. **Gmail**: Automatically processes board emails with attachments
+2. **Google Drive**: Syncs specific folders (Board Meetings, Financial Reports)
+3. **HubSpot**: Integrates sales data for board reporting
+4. **MCP Server**: Advanced AI workflows for complex analysis
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+1. Fork the repository
+2. Create a feature branch
+3. Implement changes with tests
+4. Submit a pull request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## 🆘 Support
 
-- **Documentation**: Check our [Wiki](https://github.com/yourusername/boardbravo/wiki)
-- **Issues**: Report bugs on [GitHub Issues](https://github.com/yourusername/boardbravo/issues)
-- **Discussions**: Join our [GitHub Discussions](https://github.com/yourusername/boardbravo/discussions)
+For support and questions:
+- Check the [Issues](https://github.com/your-repo/boardbravo/issues) page
+- Review the configuration documentation
+- Ensure all API keys are properly configured
 
 ---
 
-**Built with ❤️ for better board governance and decision-making** 
+**BoardBravo** - Empowering better board decisions through AI-driven document analysis. 

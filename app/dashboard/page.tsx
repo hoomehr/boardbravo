@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { 
   Upload, 
@@ -18,7 +18,13 @@ import {
   Settings,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  Mail,
+  Database,
+  Server,
+  Users,
+  Building2,
+  Plug
 } from 'lucide-react'
 import Link from 'next/link'
 import { useDropzone } from 'react-dropzone'
@@ -72,6 +78,15 @@ interface AIProviderStatus {
   status: 'configured' | 'not_configured'
 }
 
+interface Integration {
+  id: string
+  name: string
+  icon: React.ReactNode
+  status: 'connected' | 'disconnected'
+  description: string
+  color: string
+}
+
 export default function DashboardPage() {
   const [documents, setDocuments] = useState<Document[]>([])
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -87,10 +102,61 @@ export default function DashboardPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [aiProviderStatus, setAIProviderStatus] = useState<AIProviderStatus | null>(null)
   const [showProviderStatus, setShowProviderStatus] = useState(false)
+  const [showIntegrations, setShowIntegrations] = useState(false)
+  
+  // Integration status (mock data for now)
+  const [integrations, setIntegrations] = useState<Integration[]>([
+    {
+      id: 'gmail',
+      name: 'Gmail',
+      icon: <Mail className="w-5 h-5" />,
+      status: 'disconnected',
+      description: 'Connect to Gmail for email document analysis',
+      color: 'from-red-500 to-orange-500'
+    },
+    {
+      id: 'hubspot',
+      name: 'HubSpot CRM',
+      icon: <Building2 className="w-5 h-5" />,
+      status: 'disconnected',
+      description: 'Sync CRM data and sales documents',
+      color: 'from-orange-500 to-amber-500'
+    },
+    {
+      id: 'google-drive',
+      name: 'Google Drive',
+      icon: <Folder className="w-5 h-5" />,
+      status: 'disconnected',
+      description: 'Access board documents from Google Drive',
+      color: 'from-blue-500 to-green-500'
+    },
+    {
+      id: 'mcp-server',
+      name: 'MCP Server',
+      icon: <Server className="w-5 h-5" />,
+      status: 'disconnected',
+      description: 'Connect to Model Context Protocol servers',
+      color: 'from-purple-500 to-pink-500'
+    }
+  ])
+  
+  // Ref for auto-scrolling chat
+  const chatContainerRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll to bottom when new messages are added
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [chatMessages, isProcessing])
 
   // Check AI provider status on component mount
   useEffect(() => {
     checkAIProviderStatus()
+    checkIntegrationCallbacks()
   }, [])
 
   const checkAIProviderStatus = async () => {
@@ -100,6 +166,85 @@ export default function DashboardPage() {
       setAIProviderStatus(data)
     } catch (error) {
       console.error('Failed to check AI provider status:', error)
+    }
+  }
+
+  const checkIntegrationCallbacks = () => {
+    // Check for OAuth callback results in URL params
+    const urlParams = new URLSearchParams(window.location.search)
+    const integration = urlParams.get('integration')
+    const status = urlParams.get('status')
+    const message = urlParams.get('message')
+
+    if (integration && status) {
+      if (status === 'success') {
+        // Update integration status to connected
+        setIntegrations(prev => 
+          prev.map(int => 
+            int.id === integration 
+              ? { ...int, status: 'connected' }
+              : int
+          )
+        )
+        
+        // Show success message
+        alert(`${integration} connected successfully!`)
+      } else if (status === 'error') {
+        alert(`Failed to connect ${integration}: ${message || 'Unknown error'}`)
+      }
+
+      // Clean up URL params
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+  }
+
+  const handleIntegrationConnect = async (integrationId: string) => {
+    console.log(`Connecting to ${integrationId}...`)
+    
+    try {
+      switch (integrationId) {
+        case 'gmail':
+          // Get Gmail OAuth URL
+          const gmailResponse = await fetch('/api/integrations/gmail?action=connect')
+          const gmailData = await gmailResponse.json()
+          if (gmailData.authUrl) {
+            window.open(gmailData.authUrl, '_blank', 'width=500,height=600')
+          }
+          break
+          
+        case 'google-drive':
+          // Get Google Drive OAuth URL
+          const driveResponse = await fetch('/api/integrations/google-drive?action=connect')
+          const driveData = await driveResponse.json()
+          if (driveData.authUrl) {
+            window.open(driveData.authUrl, '_blank', 'width=500,height=600')
+          }
+          break
+          
+        case 'hubspot':
+          // Simulate HubSpot OAuth flow
+          alert('HubSpot OAuth flow would start here. This would redirect to HubSpot for CRM access.')
+          break
+          
+        case 'mcp-server':
+          // Show MCP server configuration dialog
+          const mcpEndpoint = prompt('Enter MCP Server endpoint URL:', 'ws://localhost:3000/mcp')
+          if (mcpEndpoint) {
+            // In real implementation, this would validate and store the MCP connection
+            console.log('Connecting to MCP server:', mcpEndpoint)
+            setIntegrations(prev => 
+              prev.map(integration => 
+                integration.id === integrationId 
+                  ? { ...integration, status: 'connected' }
+                  : integration
+              )
+            )
+          }
+          break
+      }
+    } catch (error) {
+      console.error(`Failed to connect to ${integrationId}:`, error)
+      alert(`Failed to connect to ${integrationId}. Please try again.`)
     }
   }
 
@@ -299,6 +444,13 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center space-x-4">
             <button
+              onClick={() => setShowIntegrations(!showIntegrations)}
+              className="flex items-center space-x-2 px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              <Plug className="w-4 h-4" />
+              <span className="text-sm">Integrations</span>
+            </button>
+            <button
               onClick={() => setShowProviderStatus(!showProviderStatus)}
               className="flex items-center space-x-2 px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
             >
@@ -317,6 +469,67 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Integrations Panel */}
+        {showIntegrations && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-7xl mx-auto mt-4 bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-6"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="font-semibold text-purple-900">Data Source Integrations</h3>
+                <p className="text-sm text-purple-700 mt-1">
+                  Connect your data sources for comprehensive document analysis
+                </p>
+              </div>
+              <button
+                onClick={() => setShowIntegrations(false)}
+                className="text-purple-500 hover:text-purple-700"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {integrations.map((integration) => (
+                <div
+                  key={integration.id}
+                  className="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-md transition-all duration-200"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className={`w-10 h-10 bg-gradient-to-br ${integration.color} rounded-lg flex items-center justify-center text-white`}>
+                      {integration.icon}
+                    </div>
+                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      integration.status === 'connected' 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {integration.status === 'connected' ? '✓ Connected' : 'Not Connected'}
+                    </div>
+                  </div>
+                  
+                  <h4 className="font-medium text-gray-900 mb-2">{integration.name}</h4>
+                  <p className="text-sm text-gray-600 mb-4">{integration.description}</p>
+                  
+                  <button
+                    onClick={() => handleIntegrationConnect(integration.id)}
+                    disabled={integration.status === 'connected'}
+                    className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                      integration.status === 'connected'
+                        ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg'
+                    }`}
+                  >
+                    {integration.status === 'connected' ? 'Connected' : 'Connect'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* AI Provider Status Panel */}
         {showProviderStatus && aiProviderStatus && (
@@ -391,21 +604,48 @@ export default function DashboardPage() {
               </p>
             </div>
 
-            {/* Google Drive Integration */}
-            <button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 mb-6">
-              <div className="flex items-center justify-center space-x-2">
+            {/* Integration Quick Actions */}
+            <div className="space-y-3 mb-6">
+              <button
+                onClick={() => handleIntegrationConnect('gmail')}
+                className="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
+              >
+                <Mail className="w-5 h-5" />
+                <span>Connect Gmail</span>
+              </button>
+              
+              <button
+                onClick={() => handleIntegrationConnect('hubspot')}
+                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
+              >
+                <Building2 className="w-5 h-5" />
+                <span>Connect HubSpot CRM</span>
+              </button>
+              
+              <button
+                onClick={() => handleIntegrationConnect('google-drive')}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
+              >
                 <Folder className="w-5 h-5" />
                 <span>Connect Google Drive</span>
-              </div>
-            </button>
+              </button>
+              
+              <button
+                onClick={() => handleIntegrationConnect('mcp-server')}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
+              >
+                <Server className="w-5 h-5" />
+                <span>Connect MCP Server</span>
+              </button>
+            </div>
 
             {/* Documents List */}
-            <div className="flex-1 overflow-y-auto scrollbar-thin space-y-3">
+            <div className="flex-1 overflow-y-auto space-y-3">
               {documents.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                   <p>No documents uploaded yet</p>
-                  <p className="text-sm">Upload files to get started</p>
+                  <p className="text-sm">Upload files or connect integrations to get started</p>
                 </div>
               ) : (
                 documents.map((doc) => (
@@ -435,9 +675,9 @@ export default function DashboardPage() {
           </div>
 
           {/* Right Panel - AI Chat */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 flex flex-col">
+          <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 flex flex-col max-h-full">
             {/* Chat Header */}
-            <div className="border-b border-gray-200 p-6">
+            <div className="border-b border-gray-200 p-6 flex-shrink-0">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
                   <Bot className="w-6 h-6 text-white" />
@@ -451,8 +691,12 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Chat Messages */}
-            <div className="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-6">
+            {/* Chat Messages - Fixed height with scroll */}
+            <div 
+              ref={chatContainerRef}
+              className="flex-1 overflow-y-auto p-6 space-y-6 min-h-0"
+              style={{ maxHeight: 'calc(100vh - 400px)' }}
+            >
               {chatMessages.map((message) => (
                 <motion.div
                   key={message.id}
@@ -474,7 +718,8 @@ export default function DashboardPage() {
                         <Bot className="w-4 h-4 text-white" />
                       )}
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
+                      {/* Text Message */}
                       <div className={`rounded-2xl px-4 py-3 ${
                         message.type === 'user'
                           ? 'bg-blue-600 text-white'
@@ -488,7 +733,18 @@ export default function DashboardPage() {
                         </p>
                       </div>
                       
-                      {/* Render Summary Card */}
+                      {/* Render Charts First (if available) */}
+                      {message.charts && message.charts.length > 0 && (
+                        <div className="mt-4 space-y-4">
+                          {message.charts.map((chart, index) => (
+                            <div key={index}>
+                              <ChartRenderer chartData={chart} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* Render Summary Card (if available) */}
                       {message.summary && (
                         <div className="mt-4">
                           <SummaryCard
@@ -498,13 +754,6 @@ export default function DashboardPage() {
                           />
                         </div>
                       )}
-                      
-                      {/* Render Charts */}
-                      {message.charts && message.charts.map((chart, index) => (
-                        <div key={index} className="mt-4">
-                          <ChartRenderer chartData={chart} />
-                        </div>
-                      ))}
                     </div>
                   </div>
                 </motion.div>
@@ -530,10 +779,13 @@ export default function DashboardPage() {
                   </div>
                 </motion.div>
               )}
+              
+              {/* Invisible div for auto-scroll */}
+              <div ref={messagesEndRef} />
             </div>
 
-            {/* Chat Input */}
-            <div className="border-t border-gray-200 p-6">
+            {/* Chat Input - Fixed at bottom */}
+            <div className="border-t border-gray-200 p-6 flex-shrink-0">
               <div className="flex items-end space-x-4">
                 <div className="flex-1">
                   <div className="relative">
