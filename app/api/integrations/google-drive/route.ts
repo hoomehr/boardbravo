@@ -87,16 +87,31 @@ function generateDriveAuthUrl(): string {
     throw new Error('GOOGLE_CLIENT_ID not configured')
   }
 
+  if (!process.env.NEXTAUTH_URL) {
+    throw new Error('NEXTAUTH_URL not configured')
+  }
+
+  const redirectUri = process.env.NEXTAUTH_URL + '/api/integrations/google-drive/callback'
+  
   const params = new URLSearchParams({
     client_id: GOOGLE_CLIENT_ID,
-    redirect_uri: DRIVE_REDIRECT_URI,
+    redirect_uri: redirectUri,
     scope: DRIVE_SCOPES.join(' '),
     response_type: 'code',
     access_type: 'offline',
     prompt: 'consent'
   })
 
-  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
+  
+  console.log('Generated Google Drive OAuth URL:', {
+    clientId: GOOGLE_CLIENT_ID.substring(0, 10) + '...',
+    redirectUri,
+    scopes: DRIVE_SCOPES,
+    fullUrl: authUrl
+  })
+
+  return authUrl
 }
 
 async function exchangeCodeForTokens(code: string) {

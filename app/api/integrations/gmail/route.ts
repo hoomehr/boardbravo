@@ -78,16 +78,31 @@ function generateGmailAuthUrl(): string {
     throw new Error('GOOGLE_CLIENT_ID not configured')
   }
 
+  if (!process.env.NEXTAUTH_URL) {
+    throw new Error('NEXTAUTH_URL not configured')
+  }
+
+  const redirectUri = process.env.NEXTAUTH_URL + '/api/integrations/gmail/callback'
+  
   const params = new URLSearchParams({
     client_id: GMAIL_CLIENT_ID,
-    redirect_uri: GMAIL_REDIRECT_URI,
+    redirect_uri: redirectUri,
     scope: GMAIL_SCOPES.join(' '),
     response_type: 'code',
     access_type: 'offline',
     prompt: 'consent'
   })
 
-  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
+  
+  console.log('Generated Gmail OAuth URL:', {
+    clientId: GMAIL_CLIENT_ID.substring(0, 10) + '...',
+    redirectUri,
+    scopes: GMAIL_SCOPES,
+    fullUrl: authUrl
+  })
+
+  return authUrl
 }
 
 async function exchangeCodeForTokens(code: string) {

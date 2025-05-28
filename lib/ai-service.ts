@@ -48,6 +48,7 @@ class GeminiProvider implements AIProvider {
   async generateResponse(prompt: string, documents?: any[]): Promise<AIResponse> {
     try {
       console.log('Generating response with provider: Google Gemini')
+      console.log('Documents received:', documents ? `Array with ${documents.length} items` : 'No documents')
       
       // Enhanced investor-focused system prompt
       const systemPrompt = `You are BoardBravo AI, an expert investment analyst and board advisor assistant. You specialize in analyzing board documents, financial reports, and strategic materials for investors, board members, and executives.
@@ -79,9 +80,12 @@ Generate charts for financial data, trends, comparisons, or metrics that would b
 
 Remember: You're advising sophisticated investors and board members who need actionable insights, not generic summaries.`
 
-      const contextualPrompt = documents && documents.length > 0 
-        ? `${systemPrompt}\n\nDocument Context: ${documents.map(doc => `${doc.name}: ${doc.extractedText?.substring(0, 1000) || 'No content extracted'}`).join('\n\n')}\n\nUser Query: ${prompt}`
-        : `${systemPrompt}\n\nUser Query: ${prompt}`
+      // Safely handle documents - ensure it's always an array
+      const safeDocuments = Array.isArray(documents) ? documents : []
+      
+      const contextualPrompt = safeDocuments.length > 0 
+        ? `${systemPrompt}\n\nDocument Context: ${safeDocuments.map(doc => `${doc.name}: ${doc.extractedText?.substring(0, 1000) || 'No content extracted'}`).join('\n\n')}\n\nUser Query: ${prompt}`
+        : `${systemPrompt}\n\nNote: No documents uploaded yet. Provide general investment and board governance guidance based on the query.\n\nUser Query: ${prompt}`
 
       console.log('Gemini: Getting model...')
       console.log('Gemini: Generating content...')
@@ -97,7 +101,7 @@ Remember: You're advising sophisticated investors and board members who need act
       console.log('Gemini: Success! Response length:', text.length)
 
       // Parse for structured data and charts
-      return this.parseStructuredResponse(text, prompt)
+      return this.parseStructuredResponse(text, prompt, safeDocuments.length > 0)
     } catch (error: any) {
       console.error('Gemini API detailed error:', {
         message: error.message,
@@ -108,13 +112,13 @@ Remember: You're advising sophisticated investors and board members who need act
     }
   }
 
-  private parseStructuredResponse(text: string, originalPrompt: string): AIResponse {
+  private parseStructuredResponse(text: string, originalPrompt: string, hasDocuments: boolean): AIResponse {
     // Generate sample charts for financial/business queries
     const shouldGenerateCharts = this.shouldGenerateCharts(originalPrompt)
-    const charts = shouldGenerateCharts ? this.generateInvestorCharts(originalPrompt) : []
+    const charts = shouldGenerateCharts ? this.generateInvestorCharts(originalPrompt, hasDocuments) : []
     
     // Generate summary metrics for investor dashboard
-    const summary = this.generateInvestorSummary(originalPrompt)
+    const summary = this.generateInvestorSummary(originalPrompt, hasDocuments)
 
     return {
       response: text,
@@ -132,10 +136,28 @@ Remember: You're advising sophisticated investors and board members who need act
     return chartKeywords.some(keyword => prompt.toLowerCase().includes(keyword))
   }
 
-  private generateInvestorCharts(prompt: string): ChartData[] {
+  private generateInvestorCharts(prompt: string, hasDocuments: boolean): ChartData[] {
     const charts: ChartData[] = []
     
-    // Financial Performance Chart
+    if (!hasDocuments) {
+      // Provide sample/template charts when no documents are available
+      charts.push({
+        type: 'bar',
+        title: 'Sample Revenue Analysis',
+        description: 'Template chart showing quarterly revenue growth (upload documents for real data)',
+        data: [
+          { quarter: 'Q1 2024', revenue: 2.1, target: 2.0 },
+          { quarter: 'Q2 2024', revenue: 2.8, target: 2.5 },
+          { quarter: 'Q3 2024', revenue: 3.2, target: 2.8 },
+          { quarter: 'Q4 2024', revenue: 3.8, target: 3.2 }
+        ],
+        xKey: 'quarter',
+        yKey: 'revenue'
+      })
+      return charts
+    }
+    
+    // Financial Performance Chart (when documents are available)
     if (prompt.toLowerCase().includes('revenue') || prompt.toLowerCase().includes('financial') || prompt.toLowerCase().includes('performance')) {
       charts.push({
         type: 'bar',
@@ -191,7 +213,37 @@ Remember: You're advising sophisticated investors and board members who need act
     return charts
   }
 
-  private generateInvestorSummary(prompt: string): { title: string; metrics: SummaryMetric[]; insights: string[] } {
+  private generateInvestorSummary(prompt: string, hasDocuments: boolean): { title: string; metrics: SummaryMetric[]; insights: string[] } {
+    if (!hasDocuments) {
+      return {
+        title: 'Getting Started',
+        metrics: [
+          {
+            title: 'Documents',
+            value: '0',
+            change: 0,
+            changeType: 'neutral',
+            icon: 'warning',
+            description: 'Upload documents to begin analysis'
+          },
+          {
+            title: 'Integrations',
+            value: 'Connect',
+            change: 0,
+            changeType: 'neutral',
+            icon: 'calendar',
+            description: 'Connect data sources for insights'
+          }
+        ],
+        insights: [
+          'Upload board documents, financial reports, or presentations to get started',
+          'Connect Gmail, Google Drive, or other integrations for comprehensive analysis',
+          'Ask specific questions about financial performance, risks, or strategic planning',
+          'Sample questions are available below to explore features'
+        ]
+      }
+    }
+
     return {
       title: 'Executive Dashboard',
       metrics: [

@@ -3,11 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "setup:oauth": "node scripts/fix-oauth.js",
+    "debug:oauth": "echo 'Visit http://localhost:3000/api/debug-oauth to check your OAuth configuration'"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

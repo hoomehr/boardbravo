@@ -9,14 +9,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
 
-    // Build context from documents
-    let documentContext = ''
-    if (documents && documents.length > 0) {
-      documentContext = documents.map((doc: any) => 
-        `Document: ${doc.name}\nContent: ${doc.extractedText || 'No content extracted'}\n\n`
-      ).join('')
-    }
-
     // Create AI provider based on configuration
     let aiProvider
     try {
@@ -31,10 +23,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate response using the configured provider
-    const aiResponse = await aiProvider.generateResponse(message, documentContext)
+    const aiResponse = await aiProvider.generateResponse(message, documents)
 
     return NextResponse.json({ 
-      response: aiResponse.text,
+      response: aiResponse.response,
       charts: aiResponse.charts,
       summary: aiResponse.summary,
       provider: aiProvider.name,

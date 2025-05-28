@@ -93,7 +93,7 @@ export default function DashboardPage() {
     {
       id: '1',
       type: 'assistant',
-      content: "Hello! I'm your BoardBravo AI assistant powered by Google Gemini. Upload some documents and I'll help you analyze them with interactive charts and summaries. You can ask me to summarize board decks, extract key risks, identify trends, or prepare investment pitch summaries.",
+      content: "Hello! I'm your BoardBravo AI assistant powered by Google Gemini. I can help you with investment analysis, board governance, financial planning, and risk assessment. You can ask questions right away, or upload documents for specific analysis. I'll provide executive insights, create charts, and deliver actionable recommendations for board meetings and investor discussions.",
       timestamp: new Date()
     }
   ])
@@ -103,6 +103,7 @@ export default function DashboardPage() {
   const [aiProviderStatus, setAIProviderStatus] = useState<AIProviderStatus | null>(null)
   const [showProviderStatus, setShowProviderStatus] = useState(false)
   const [showIntegrations, setShowIntegrations] = useState(false)
+  const [isClient, setIsClient] = useState(false)
   
   // Integration status (mock data for now)
   const [integrations, setIntegrations] = useState<Integration[]>([
@@ -155,6 +156,7 @@ export default function DashboardPage() {
 
   // Check AI provider status on component mount
   useEffect(() => {
+    setIsClient(true)
     checkAIProviderStatus()
     checkIntegrationCallbacks()
   }, [])
@@ -422,6 +424,112 @@ export default function DashboardPage() {
     }
   }
 
+  const getSampleQuestions = () => {
+    const baseQuestions = [
+      {
+        text: "Create a revenue chart from the financial data",
+        source: 'Financial Analysis'
+      },
+      {
+        text: "What are the top 3 risks identified in our board materials?",
+        source: 'Risk Assessment'
+      },
+      {
+        text: "Summarize Q4 financial performance with key metrics",
+        source: 'Performance Review'
+      },
+      {
+        text: "Show me growth trends and competitive positioning",
+        source: 'Strategic Analysis'
+      }
+    ]
+
+    const integrationQuestions = []
+
+    // Add Gmail-specific questions if connected
+    if (integrations.find(i => i.id === 'gmail')?.status === 'connected') {
+      integrationQuestions.push({
+        text: "Analyze board emails from the last month",
+        source: 'Gmail'
+      })
+      integrationQuestions.push({
+        text: "Extract action items from recent email threads",
+        source: 'Gmail'
+      })
+    }
+
+    // Add Google Drive-specific questions if connected
+    if (integrations.find(i => i.id === 'google-drive')?.status === 'connected') {
+      integrationQuestions.push({
+        text: "Review latest board meeting minutes from Drive",
+        source: 'Google Drive'
+      })
+      integrationQuestions.push({
+        text: "Compare financial reports across quarters",
+        source: 'Google Drive'
+      })
+    }
+
+    // Add HubSpot-specific questions if connected
+    if (integrations.find(i => i.id === 'hubspot')?.status === 'connected') {
+      integrationQuestions.push({
+        text: "Analyze sales pipeline for board presentation",
+        source: 'HubSpot CRM'
+      })
+      integrationQuestions.push({
+        text: "Customer metrics summary for investors",
+        source: 'HubSpot CRM'
+      })
+    }
+
+    // Combine base questions with integration-specific ones
+    return [...baseQuestions, ...integrationQuestions].slice(0, 8) // Show max 8 questions
+  }
+
+  const handleSampleQuestion = async (question: string) => {
+    try {
+      const readyDocuments = documents.filter(doc => doc.status === 'ready')
+      
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: question,
+          documents: readyDocuments
+        })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        const aiResponse: ChatMessage = {
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'assistant',
+          content: data.response,
+          timestamp: new Date(),
+          charts: data.charts,
+          summary: data.summary
+        }
+        setChatMessages(prev => [...prev, aiResponse])
+      } else {
+        throw new Error(data.error || 'Failed to get AI response')
+      }
+    } catch (error) {
+      console.error('Sample question error:', error)
+      const errorResponse: ChatMessage = {
+        id: Math.random().toString(36).substr(2, 9),
+        type: 'assistant',
+        content: `I apologize, but I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please check your AI provider configuration and try again.`,
+        timestamp: new Date()
+      }
+      setChatMessages(prev => [...prev, errorResponse])
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Header */}
@@ -517,13 +625,23 @@ export default function DashboardPage() {
                   <button
                     onClick={() => handleIntegrationConnect(integration.id)}
                     disabled={integration.status === 'connected'}
-                    className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                    className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center space-x-2 ${
                       integration.status === 'connected'
                         ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
                         : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg'
                     }`}
                   >
-                    {integration.status === 'connected' ? 'Connected' : 'Connect'}
+                    {integration.status === 'connected' ? (
+                      <>
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Connected</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4" />
+                        <span>Connect</span>
+                      </>
+                    )}
                   </button>
                 </div>
               ))}
@@ -611,7 +729,8 @@ export default function DashboardPage() {
                 className="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
               >
                 <Mail className="w-5 h-5" />
-                <span>Connect Gmail</span>
+                <Plus className="w-4 h-4" />
+                <span>Gmail</span>
               </button>
               
               <button
@@ -619,7 +738,8 @@ export default function DashboardPage() {
                 className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
               >
                 <Building2 className="w-5 h-5" />
-                <span>Connect HubSpot CRM</span>
+                <Plus className="w-4 h-4" />
+                <span>HubSpot CRM</span>
               </button>
               
               <button
@@ -627,7 +747,8 @@ export default function DashboardPage() {
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
               >
                 <Folder className="w-5 h-5" />
-                <span>Connect Google Drive</span>
+                <Plus className="w-4 h-4" />
+                <span>Google Drive</span>
               </button>
               
               <button
@@ -635,7 +756,8 @@ export default function DashboardPage() {
                 className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
               >
                 <Server className="w-5 h-5" />
-                <span>Connect MCP Server</span>
+                <Plus className="w-4 h-4" />
+                <span>MCP Server</span>
               </button>
             </div>
 
@@ -685,7 +807,7 @@ export default function DashboardPage() {
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">AI Assistant</h2>
                   <p className="text-sm text-gray-600">
-                    Powered by {aiProviderStatus?.currentProvider ? getProviderDisplayName(aiProviderStatus.currentProvider) : 'AI'} • Ask me anything about your documents
+                    Powered by {aiProviderStatus?.currentProvider ? getProviderDisplayName(aiProviderStatus.currentProvider) : 'AI'} • Ask me anything about investment analysis or board governance
                   </p>
                 </div>
               </div>
@@ -726,11 +848,13 @@ export default function DashboardPage() {
                           : 'bg-gray-100 text-gray-900'
                       }`}>
                         <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-                        <p className={`text-xs mt-2 ${
-                          message.type === 'user' ? 'text-blue-200' : 'text-gray-500'
-                        }`}>
-                          {message.timestamp.toLocaleTimeString()}
-                        </p>
+                        {isClient && (
+                          <p className={`text-xs mt-2 ${
+                            message.type === 'user' ? 'text-blue-200' : 'text-gray-500'
+                          }`}>
+                            {message.timestamp.toLocaleTimeString()}
+                          </p>
+                        )}
                       </div>
                       
                       {/* Render Charts First (if available) */}
@@ -798,7 +922,7 @@ export default function DashboardPage() {
                           sendMessage()
                         }
                       }}
-                      placeholder="Ask me to summarize documents, find risks, analyze trends, or create charts..."
+                      placeholder="Ask me about investment analysis, board governance, financial metrics, risk assessment, or upload documents for specific analysis..."
                       className="w-full p-4 pr-12 border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       rows={3}
                       disabled={isProcessing || aiProviderStatus?.status === 'not_configured'}
@@ -820,17 +944,47 @@ export default function DashboardPage() {
                   )}
                 </button>
               </div>
-              <div className="mt-3 flex items-center space-x-4 text-sm text-gray-500">
-                <span>💡 Try: "Create a revenue chart from the financial data"</span>
-                <span>•</span>
-                <span>"Show me a summary of key metrics"</span>
-                {aiProviderStatus?.status === 'not_configured' && (
-                  <>
-                    <span>•</span>
-                    <span className="text-orange-500">⚠️ Configure AI provider to chat</span>
-                  </>
-                )}
+
+              {/* Sample Questions */}
+              <div className="mt-4">
+                <p className="text-sm text-gray-600 mb-3 font-medium">💡 Quick Start - Try these questions:</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {getSampleQuestions().map((question, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        setCurrentMessage(question.text)
+                        // Auto-send the message
+                        setTimeout(() => {
+                          const userMessage = {
+                            id: Math.random().toString(36).substr(2, 9),
+                            type: 'user' as const,
+                            content: question.text,
+                            timestamp: new Date()
+                          }
+                          setChatMessages(prev => [...prev, userMessage])
+                          setCurrentMessage('')
+                          setIsProcessing(true)
+                          handleSampleQuestion(question.text)
+                        }, 100)
+                      }}
+                      disabled={isProcessing || aiProviderStatus?.status === 'not_configured'}
+                      className="text-left p-2 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className="text-xs text-gray-500 uppercase tracking-wide">{question.source}</span>
+                      </div>
+                      <p className="text-sm text-gray-800">{question.text}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {aiProviderStatus?.status === 'not_configured' && (
+                <div className="mt-3 text-sm text-orange-500">
+                  ⚠️ Configure AI provider to chat
+                </div>
+              )}
             </div>
           </div>
         </div>
