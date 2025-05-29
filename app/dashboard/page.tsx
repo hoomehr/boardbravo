@@ -105,7 +105,7 @@ export default function DashboardPage() {
     {
       id: '1',
       type: 'assistant',
-      content: "Hello! I'm your BoardBravo AI assistant powered by Google Gemini. I can help you with investment analysis, board governance, financial planning, and risk assessment. You can ask questions right away, or upload documents for specific analysis. I'll provide executive insights, create charts, and deliver actionable recommendations for board meetings and investor discussions.",
+      content: "Hi! I'm your BoardBravo AI assistant. 📊\n\nAttach documents and start analyzing, or connect your data sources to get started!",
       timestamp: new Date()
     }
   ])
@@ -590,7 +590,7 @@ export default function DashboardPage() {
         {
           id: '1',
           type: 'assistant',
-          content: "Hello! I'm your BoardBravo AI assistant powered by Google Gemini. I can help you with investment analysis, board governance, financial planning, and risk assessment. You can ask questions right away, or upload documents for specific analysis. I'll provide executive insights, create charts, and deliver actionable recommendations for board meetings and investor discussions.",
+          content: "Hi! I'm your BoardBravo AI assistant. 📊\n\nAttach documents and start analyzing, or connect your data sources to get started!",
           timestamp: new Date()
         }
       ],
@@ -885,7 +885,7 @@ export default function DashboardPage() {
               {/* Upload Area */}
               <div
                 {...getRootProps()}
-                className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 cursor-pointer mb-6 ${
+                className={`border-2 border-dashed rounded-xl p-6 text-center transition-all duration-200 cursor-pointer mb-6 ${
                   isDragActive 
                     ? 'border-blue-500 bg-blue-50' 
                     : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
@@ -893,55 +893,51 @@ export default function DashboardPage() {
               >
                 <input {...getInputProps()} />
                 {isUploading ? (
-                  <Loader2 className="w-12 h-12 text-blue-500 mx-auto mb-4 animate-spin" />
+                  <Loader2 className="w-8 h-8 text-blue-500 mx-auto mb-3 animate-spin" />
                 ) : (
-                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-3" />
                 )}
-                <p className="text-gray-600 font-medium mb-2">
+                <p className="text-gray-600 font-medium mb-1 text-sm">
                   {isUploading ? 'Uploading files...' : 
                    isDragActive ? 'Drop files here' : 'Drop files or click to upload'}
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-xs text-gray-500">
                   PDF, Excel, PowerPoint, CSV files
                 </p>
               </div>
 
               {/* Integration Quick Actions */}
-              <div className="space-y-3 mb-6">
+              <div className="grid grid-cols-2 gap-3 mb-6">
                 <button
                   onClick={() => handleIntegrationConnect('gmail')}
-                  className="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
+                  className="bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-lg py-4 px-3 font-medium hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center space-y-2"
                 >
                   <Mail className="w-5 h-5" />
-                  <Plus className="w-4 h-4" />
-                  <span>Gmail</span>
+                  <span className="text-sm">Gmail</span>
                 </button>
                 
                 <button
                   onClick={() => handleIntegrationConnect('hubspot')}
-                  className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
+                  className="bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg py-4 px-3 font-medium hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center space-y-2"
                 >
                   <Building2 className="w-5 h-5" />
-                  <Plus className="w-4 h-4" />
-                  <span>HubSpot CRM</span>
+                  <span className="text-sm">HubSpot</span>
                 </button>
                 
                 <button
                   onClick={() => handleIntegrationConnect('google-drive')}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg py-4 px-3 font-medium hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center space-y-2"
                 >
                   <Folder className="w-5 h-5" />
-                  <Plus className="w-4 h-4" />
-                  <span>Google Drive</span>
+                  <span className="text-sm">Drive</span>
                 </button>
                 
                 <button
                   onClick={() => handleIntegrationConnect('mcp-server')}
-                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg py-3 px-4 font-medium hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2"
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg py-4 px-3 font-medium hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center space-y-2"
                 >
                   <Server className="w-5 h-5" />
-                  <Plus className="w-4 h-4" />
-                  <span>MCP Server</span>
+                  <span className="text-sm">MCP</span>
                 </button>
               </div>
 
