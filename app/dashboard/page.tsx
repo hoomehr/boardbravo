@@ -37,6 +37,7 @@ import Link from 'next/link'
 import { useDropzone } from 'react-dropzone'
 import ChartRenderer from '@/components/charts/ChartRenderer'
 import SummaryCard from '@/components/charts/SummaryCard'
+import Navbar from '@/components/layout/Navbar'
 import ReactMarkdown from 'react-markdown'
 import { format, formatDistanceToNow } from 'date-fns'
 
@@ -464,65 +465,146 @@ export default function DashboardPage() {
   }
 
   const getSampleQuestions = () => {
-    const baseQuestions = [
-      {
-        text: "Create a revenue chart from the financial data",
-        source: 'Financial Analysis'
-      },
-      {
-        text: "What are the top 3 risks identified in our board materials?",
-        source: 'Risk Assessment'
-      },
-      {
-        text: "Summarize Q4 financial performance with key metrics",
-        source: 'Performance Review'
-      },
-      {
-        text: "Show me growth trends and competitive positioning",
-        source: 'Strategic Analysis'
+    // Dynamic questions based on current context
+    const hasDocuments = documents.filter(doc => doc.status === 'ready').length > 0
+    const hasActiveChat = chatMessages.length > 2 // More than just the initial greeting
+    const connectedIntegrations = integrations.filter(i => i.status === 'connected')
+    
+    // Base questions that change based on context
+    let contextualQuestions: { text: string; source: string }[] = []
+    
+    if (!hasDocuments && !hasActiveChat) {
+      // First-time user experience
+      contextualQuestions = [
+        {
+          text: "Show me a sample financial dashboard",
+          source: 'Getting Started'
+        },
+        {
+          text: "What can BoardBravo analyze for me?",
+          source: 'Getting Started'
+        },
+        {
+          text: "Create a demo revenue chart",
+          source: 'Demo'
+        },
+        {
+          text: "Explain board document analysis",
+          source: 'Help'
+        }
+      ]
+    } else if (hasDocuments && !hasActiveChat) {
+      // User has uploaded documents but hasn't started chatting
+      contextualQuestions = [
+        {
+          text: "Summarize all uploaded documents",
+          source: 'Document Analysis'
+        },
+        {
+          text: "Create a revenue chart from the financial data",
+          source: 'Financial Analysis'
+        },
+        {
+          text: "What are the key insights from these documents?",
+          source: 'Insights'
+        },
+        {
+          text: "Identify risks and opportunities",
+          source: 'Risk Assessment'
+        }
+      ]
+    } else if (hasActiveChat) {
+      // User is actively chatting - provide follow-up questions
+      const lastUserMessage = chatMessages.filter(m => m.type === 'user').pop()
+      
+      if (lastUserMessage?.content.toLowerCase().includes('revenue') || 
+          lastUserMessage?.content.toLowerCase().includes('financial')) {
+        contextualQuestions = [
+          {
+            text: "Compare this quarter vs last quarter",
+            source: 'Follow-up'
+          },
+          {
+            text: "Show growth trends over time",
+            source: 'Trend Analysis'
+          },
+          {
+            text: "What's driving the revenue changes?",
+            source: 'Deep Dive'
+          },
+          {
+            text: "Create a forecast for next quarter",
+            source: 'Forecasting'
+          }
+        ]
+      } else if (lastUserMessage?.content.toLowerCase().includes('risk')) {
+        contextualQuestions = [
+          {
+            text: "How can we mitigate these risks?",
+            source: 'Risk Management'
+          },
+          {
+            text: "What's the financial impact of these risks?",
+            source: 'Impact Analysis'
+          },
+          {
+            text: "Show risk trends over time",
+            source: 'Risk Trends'
+          },
+          {
+            text: "Compare our risks to industry benchmarks",
+            source: 'Benchmarking'
+          }
+        ]
+      } else {
+        // General follow-up questions
+        contextualQuestions = [
+          {
+            text: "Dive deeper into this analysis",
+            source: 'Deep Dive'
+          },
+          {
+            text: "Show me related metrics",
+            source: 'Related Analysis'
+          },
+          {
+            text: "What are the next steps?",
+            source: 'Action Items'
+          },
+          {
+            text: "Create a board presentation summary",
+            source: 'Presentation'
+          }
+        ]
       }
-    ]
+    }
 
-    const integrationQuestions = []
-
-    // Add Gmail-specific questions if connected
-    if (integrations.find(i => i.id === 'gmail')?.status === 'connected') {
+    // Add integration-specific questions if connected
+    const integrationQuestions: { text: string; source: string }[] = []
+    
+    if (connectedIntegrations.find(i => i.id === 'gmail')) {
       integrationQuestions.push({
-        text: "Analyze board emails from the last month",
-        source: 'Gmail'
-      })
-      integrationQuestions.push({
-        text: "Extract action items from recent email threads",
+        text: "Analyze recent board emails",
         source: 'Gmail'
       })
     }
-
-    // Add Google Drive-specific questions if connected
-    if (integrations.find(i => i.id === 'google-drive')?.status === 'connected') {
+    
+    if (connectedIntegrations.find(i => i.id === 'google-drive')) {
       integrationQuestions.push({
-        text: "Review latest board meeting minutes from Drive",
-        source: 'Google Drive'
-      })
-      integrationQuestions.push({
-        text: "Compare financial reports across quarters",
+        text: "Sync latest Drive documents",
         source: 'Google Drive'
       })
     }
-
-    // Add HubSpot-specific questions if connected
-    if (integrations.find(i => i.id === 'hubspot')?.status === 'connected') {
+    
+    if (connectedIntegrations.find(i => i.id === 'hubspot')) {
       integrationQuestions.push({
-        text: "Analyze sales pipeline for board presentation",
-        source: 'HubSpot CRM'
-      })
-      integrationQuestions.push({
-        text: "Customer metrics summary for investors",
+        text: "Update sales pipeline metrics",
         source: 'HubSpot CRM'
       })
     }
 
-    // Combine base questions with integration-specific ones
-    return [...baseQuestions, ...integrationQuestions].slice(0, 8) // Show max 8 questions
+    // Combine contextual and integration questions, limit to 4
+    return [...contextualQuestions, ...integrationQuestions].slice(0, 4)
   }
 
   const handleSampleQuestion = async (question: string) => {
@@ -685,28 +767,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 pb-16">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">BoardBravo Dashboard</h1>
-            <p className="text-gray-600 mt-1">AI-powered board document analysis</p>
-          </div>
-          
-          {/* AI Provider Status */}
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2 bg-white rounded-lg px-3 py-2 shadow-sm border">
-              <div className={`w-2 h-2 rounded-full ${
-                aiProviderStatus?.status === 'configured' ? 'bg-green-500' : 'bg-red-500'
-              }`}></div>
-              <span className="text-sm font-medium text-gray-700">
-                {aiProviderStatus?.currentProvider ? getProviderDisplayName(aiProviderStatus.currentProvider) : 'Loading...'}
-              </span>
-            </div>
-          </div>
-        </div>
-
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+      <Navbar currentPage="dashboard" />
+      <div className="container mx-auto px-4 py-8 pb-16">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Panel: Chat History + Documents */}
           <div className="lg:col-span-1 space-y-6">
