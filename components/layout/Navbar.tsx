@@ -5,11 +5,7 @@ import {
   Settings, 
   User, 
   Menu, 
-  X,
-  Home,
-  BarChart3,
-  FileText,
-  MessageSquare
+  X
 } from 'lucide-react'
 
 interface AIProviderStatus {
@@ -53,13 +49,6 @@ export default function Navbar({ currentPage = 'dashboard' }: NavbarProps) {
     }
   }
 
-  const navItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home, id: 'dashboard' },
-    { name: 'Analytics', href: '/analytics', icon: BarChart3, id: 'analytics' },
-    { name: 'Documents', href: '/documents', icon: FileText, id: 'documents' },
-    { name: 'Chat', href: '/chat', icon: MessageSquare, id: 'chat' }
-  ]
-
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="container mx-auto px-4">
@@ -72,24 +61,6 @@ export default function Navbar({ currentPage = 'dashboard' }: NavbarProps) {
               </div>
               <span className="text-xl font-bold text-gray-900">BoardBravo</span>
             </Link>
-          </div>
-
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            {navItems.map((item) => (
-              <Link
-                key={item.id}
-                href={item.href}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                  currentPage === item.id
-                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                }`}
-              >
-                <item.icon className="w-4 h-4" />
-                <span className="font-medium">{item.name}</span>
-              </Link>
-            ))}
           </div>
 
           {/* Right Side - AI Status and User Menu */}
@@ -124,30 +95,12 @@ export default function Navbar({ currentPage = 'dashboard' }: NavbarProps) {
           </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Menu */}
         {isMobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200 py-4">
-            <div className="space-y-2">
-              {navItems.map((item) => (
-                <Link
-                  key={item.id}
-                  href={item.href}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                    currentPage === item.id
-                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
-                >
-                  <item.icon className="w-5 h-5" />
-                  <span className="font-medium">{item.name}</span>
-                </Link>
-              ))}
-            </div>
-
             {/* Mobile AI Status */}
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="flex items-center space-x-3 px-4 py-2">
+            <div className="px-4 py-2">
+              <div className="flex items-center space-x-3">
                 <div className={`w-2 h-2 rounded-full ${
                   aiProviderStatus?.status === 'configured' ? 'bg-green-500' : 'bg-red-500'
                 }`}></div>
