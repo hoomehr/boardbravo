@@ -26,12 +26,19 @@ import {
   Building2,
   Plug,
   Trash2,
-  MessageCircle
+  MessageCircle,
+  FolderOpen,
+  XCircle,
+  X,
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react'
 import Link from 'next/link'
 import { useDropzone } from 'react-dropzone'
 import ChartRenderer from '@/components/charts/ChartRenderer'
 import SummaryCard from '@/components/charts/SummaryCard'
+import ReactMarkdown from 'react-markdown'
+import { format, formatDistanceToNow } from 'date-fns'
 
 interface ChatSession {
   id: string
@@ -519,6 +526,21 @@ export default function DashboardPage() {
   }
 
   const handleSampleQuestion = async (question: string) => {
+    // Create a new session if none exists
+    if (!currentSessionId) {
+      createNewChatSession()
+    }
+
+    // Add user message first
+    const userMessage: ChatMessage = {
+      id: Math.random().toString(36).substr(2, 9),
+      type: 'user',
+      content: question,
+      timestamp: new Date()
+    }
+    setChatMessages(prev => [...prev, userMessage])
+    setIsProcessing(true)
+
     try {
       const readyDocuments = documents.filter(doc => doc.status === 'ready')
       
@@ -529,17 +551,25 @@ export default function DashboardPage() {
         },
         body: JSON.stringify({
           message: question,
-          documents: readyDocuments
+          documents: readyDocuments,
+          isQuickAction: true // Flag to indicate this is from a quick action button
         })
       })
 
       const data = await response.json()
 
       if (response.ok) {
+        // For chart-focused queries, show minimal or no text response
+        const isChartOnlyResponse = !data.response || data.response.trim() === ""
+        
         const aiResponse: ChatMessage = {
           id: Math.random().toString(36).substr(2, 9),
           type: 'assistant',
-          content: data.response,
+          content: isChartOnlyResponse 
+            ? (readyDocuments.length > 0 
+                ? "📊 Analysis complete - see charts and metrics below" 
+                : "📋 Upload documents to generate data-driven insights")
+            : data.response,
           timestamp: new Date(),
           charts: data.charts,
           summary: data.summary
@@ -649,208 +679,74 @@ export default function DashboardPage() {
     }
   }
 
+  const removeDocument = (documentId: string) => {
+    setDocuments(prev => prev.filter(doc => doc.id !== documentId))
+    deleteSession(documentId)
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Link href="/" className="flex items-center space-x-2 text-gray-600 hover:text-gray-800">
-              <ArrowLeft className="w-5 h-5" />
-              <span>Back to Home</span>
-            </Link>
-            <div className="w-px h-6 bg-gray-300" />
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <Zap className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                BoardBravo
-              </span>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 pb-16">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">BoardBravo Dashboard</h1>
+            <p className="text-gray-600 mt-1">AI-powered board document analysis</p>
           </div>
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setShowIntegrations(!showIntegrations)}
-              className="flex items-center space-x-2 px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              <Plug className="w-4 h-4" />
-              <span className="text-sm">Integrations</span>
-            </button>
-            <button
-              onClick={() => setShowProviderStatus(!showProviderStatus)}
-              className="flex items-center space-x-2 px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              <Settings className="w-4 h-4" />
-              <span className="text-sm">
-                {aiProviderStatus?.currentProvider ? getProviderDisplayName(aiProviderStatus.currentProvider) : 'AI Config'}
+          
+          {/* AI Provider Status */}
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 bg-white rounded-lg px-3 py-2 shadow-sm border">
+              <div className={`w-2 h-2 rounded-full ${
+                aiProviderStatus?.status === 'configured' ? 'bg-green-500' : 'bg-red-500'
+              }`}></div>
+              <span className="text-sm font-medium text-gray-700">
+                {aiProviderStatus?.currentProvider ? getProviderDisplayName(aiProviderStatus.currentProvider) : 'Loading...'}
               </span>
-              {aiProviderStatus?.status === 'configured' ? (
-                <CheckCircle className="w-4 h-4 text-green-500" />
-              ) : (
-                <AlertCircle className="w-4 h-4 text-orange-500" />
-              )}
-            </button>
-            <div className="text-sm text-gray-600">
-              {documents.length} document{documents.length !== 1 ? 's' : ''} uploaded
             </div>
           </div>
         </div>
 
-        {/* Integrations Panel */}
-        {showIntegrations && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-7xl mx-auto mt-4 bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-6"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h3 className="font-semibold text-purple-900">Data Source Integrations</h3>
-                <p className="text-sm text-purple-700 mt-1">
-                  Connect your data sources for comprehensive document analysis
-                </p>
-              </div>
-              <button
-                onClick={() => setShowIntegrations(false)}
-                className="text-purple-500 hover:text-purple-700"
-              >
-                ×
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {integrations.map((integration) => (
-                <div
-                  key={integration.id}
-                  className="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-md transition-all duration-200"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`w-10 h-10 bg-gradient-to-br ${integration.color} rounded-lg flex items-center justify-center text-white`}>
-                      {integration.icon}
-                    </div>
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      integration.status === 'connected' 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {integration.status === 'connected' ? '✓ Connected' : 'Not Connected'}
-                    </div>
-                  </div>
-                  
-                  <h4 className="font-medium text-gray-900 mb-2">{integration.name}</h4>
-                  <p className="text-sm text-gray-600 mb-4">{integration.description}</p>
-                  
-                  <button
-                    onClick={() => handleIntegrationConnect(integration.id)}
-                    disabled={integration.status === 'connected'}
-                    className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center space-x-2 ${
-                      integration.status === 'connected'
-                        ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg'
-                    }`}
-                  >
-                    {integration.status === 'connected' ? (
-                      <>
-                        <CheckCircle className="w-4 h-4" />
-                        <span>Connected</span>
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="w-4 h-4" />
-                        <span>Connect</span>
-                      </>
-                    )}
-                  </button>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Panel: Chat History + Documents */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Chat History */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Chat History</h2>
+              
+              {chatSessions.length === 0 ? (
+                <div className="text-center py-8">
+                  <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500 text-sm">No chat sessions yet</p>
+                  <p className="text-gray-400 text-xs mt-1">Start a conversation to see your history</p>
                 </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {/* AI Provider Status Panel */}
-        {showProviderStatus && aiProviderStatus && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-7xl mx-auto mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4"
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="font-medium text-blue-900">AI Provider Status</h3>
-                <p className="text-sm text-blue-700 mt-1">
-                  Current: {getProviderDisplayName(aiProviderStatus.currentProvider)}
-                  {aiProviderStatus.status === 'not_configured' && (
-                    <span className="text-orange-600"> (Not configured)</span>
-                  )}
-                </p>
-                {aiProviderStatus.availableProviders.length > 0 && (
-                  <p className="text-sm text-blue-600 mt-2">
-                    Available: {aiProviderStatus.availableProviders.map(getProviderDisplayName).join(', ')}
-                  </p>
-                )}
-                {aiProviderStatus.status === 'not_configured' && (
-                  <p className="text-sm text-orange-600 mt-2">
-                    Please configure your AI provider API key in environment variables.
-                  </p>
-                )}
-              </div>
-              <button
-                onClick={() => setShowProviderStatus(false)}
-                className="text-blue-500 hover:text-blue-700"
-              >
-                ×
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </header>
-
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-[calc(100vh-140px)]">
-          {/* Left Panel - Chat History + Documents */}
-          <div className="lg:col-span-1 bg-white rounded-2xl border border-gray-200 p-6 flex flex-col">
-            {/* Chat History Section */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900">Chat History</h2>
-                <button 
-                  onClick={createNewChatSession}
-                  className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                  title="New Chat"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Chat Sessions List - Compact */}
-              <div className="max-h-48 overflow-y-auto space-y-2">
-                {chatSessions.length === 0 ? (
-                  <div className="text-center py-4 text-gray-500">
-                    <MessageCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                    <p className="text-sm">No chat history yet</p>
-                  </div>
-                ) : (
-                  chatSessions.map((session) => (
-                    <motion.div
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {chatSessions.map((session) => (
+                    <div
                       key={session.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={`bg-gray-50 rounded-lg p-3 border transition-all cursor-pointer hover:shadow-md ${
-                        currentSessionId === session.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-                      }`}
                       onClick={() => switchToSession(session.id)}
+                      className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                        currentSessionId === session.id
+                          ? 'bg-blue-50 border border-blue-200'
+                          : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
+                      }`}
                     >
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-gray-900 truncate text-xs">{session.title}</h3>
+                          <p className={`text-sm font-medium truncate ${
+                            currentSessionId === session.id ? 'text-blue-900' : 'text-gray-900'
+                          }`}>
+                            {session.title}
+                          </p>
                           <div className="flex items-center space-x-2 mt-1">
-                            <p className="text-xs text-gray-500">
-                              {session.messages.length - 1} msgs
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {session.updatedAt.toLocaleDateString()}
-                            </p>
+                            <span className="text-xs text-gray-500">
+                              {session.messages.length} messages
+                            </span>
+                            <span className="text-xs text-gray-400">•</span>
+                            <span className="text-xs text-gray-500">
+                              {isClient ? formatDistanceToNow(session.updatedAt, { addSuffix: true }) : ''}
+                            </span>
                           </div>
                         </div>
                         <button
@@ -858,30 +754,21 @@ export default function DashboardPage() {
                             e.stopPropagation()
                             deleteSession(session.id)
                           }}
-                          className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                          title="Delete Chat"
+                          className="ml-2 p-1 text-gray-400 hover:text-red-500 transition-colors"
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-                    </motion.div>
-                  ))
-                )}
-              </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Divider */}
-            <div className="border-t border-gray-200 mb-6"></div>
-
-            {/* Documents Section */}
-            <div className="flex-1 flex flex-col">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900">Documents</h2>
-                <button className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
-                  <Folder className="w-5 h-5" />
-                </button>
-              </div>
-
+            {/* Documents & Upload */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Documents & Upload</h2>
+              
               {/* Upload Area */}
               <div
                 {...getRootProps()}
@@ -899,10 +786,10 @@ export default function DashboardPage() {
                 )}
                 <p className="text-gray-600 font-medium mb-1 text-sm">
                   {isUploading ? 'Uploading files...' : 
-                   isDragActive ? 'Drop files here' : 'Drop files or click to upload'}
+                   isDragActive ? 'Drop files here' : 'Upload Documents'}
                 </p>
-                <p className="text-xs text-gray-500">
-                  PDF, Excel, PowerPoint, CSV files
+                <p className="text-gray-500 text-xs">
+                  {isUploading ? 'Please wait...' : 'PDF, Excel, PowerPoint, CSV supported'}
                 </p>
               </div>
 
@@ -910,31 +797,31 @@ export default function DashboardPage() {
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <button
                   onClick={() => handleIntegrationConnect('gmail')}
-                  className="bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-lg py-4 px-3 font-medium hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center space-y-2"
+                  className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 text-red-700 rounded-lg py-4 px-3 font-medium hover:shadow-md hover:from-red-100 hover:to-orange-100 transition-all duration-200 flex flex-col items-center justify-center space-y-2"
                 >
                   <Mail className="w-5 h-5" />
                   <span className="text-sm">Gmail</span>
                 </button>
                 
                 <button
-                  onClick={() => handleIntegrationConnect('hubspot')}
-                  className="bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg py-4 px-3 font-medium hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center space-y-2"
-                >
-                  <Building2 className="w-5 h-5" />
-                  <span className="text-sm">HubSpot</span>
-                </button>
-                
-                <button
                   onClick={() => handleIntegrationConnect('google-drive')}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg py-4 px-3 font-medium hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center space-y-2"
+                  className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-700 rounded-lg py-4 px-3 font-medium hover:shadow-md hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 flex flex-col items-center justify-center space-y-2"
                 >
-                  <Folder className="w-5 h-5" />
+                  <FolderOpen className="w-5 h-5" />
                   <span className="text-sm">Drive</span>
                 </button>
                 
                 <button
-                  onClick={() => handleIntegrationConnect('mcp-server')}
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg py-4 px-3 font-medium hover:shadow-lg transition-all duration-200 flex flex-col items-center justify-center space-y-2"
+                  onClick={() => handleIntegrationConnect('hubspot')}
+                  className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 text-orange-700 rounded-lg py-4 px-3 font-medium hover:shadow-md hover:from-orange-100 hover:to-amber-100 transition-all duration-200 flex flex-col items-center justify-center space-y-2"
+                >
+                  <Users className="w-5 h-5" />
+                  <span className="text-sm">HubSpot</span>
+                </button>
+                
+                <button
+                  onClick={() => handleIntegrationConnect('mcp')}
+                  className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 text-purple-700 rounded-lg py-4 px-3 font-medium hover:shadow-md hover:from-purple-100 hover:to-pink-100 transition-all duration-200 flex flex-col items-center justify-center space-y-2"
                 >
                   <Server className="w-5 h-5" />
                   <span className="text-sm">MCP</span>
@@ -942,230 +829,218 @@ export default function DashboardPage() {
               </div>
 
               {/* Documents List */}
-              <div className="flex-1 overflow-y-auto space-y-3">
+              <div className="space-y-3">
                 {documents.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    <p>No documents uploaded yet</p>
-                    <p className="text-sm">Upload files or connect integrations to get started</p>
+                  <div className="text-center py-8">
+                    <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm">No documents uploaded</p>
+                    <p className="text-gray-400 text-xs mt-1">Upload files to get started</p>
                   </div>
                 ) : (
                   documents.map((doc) => (
-                    <motion.div
-                      key={doc.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="bg-gray-50 rounded-lg p-4 border border-gray-200"
-                    >
-                      <div className="flex items-start space-x-3">
-                        <span className="text-2xl">{getFileIcon(doc.name)}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 truncate">{doc.name}</p>
-                          <p className="text-sm text-gray-500">{formatFileSize(doc.size)}</p>
-                          <div className="flex items-center space-x-2 mt-2">
-                            <div className={`w-2 h-2 rounded-full ${getStatusColor(doc.status)}`} />
-                            <span className="text-xs text-gray-500 capitalize">
-                              {doc.status === 'processing' ? 'Processing...' : doc.status}
-                            </span>
-                          </div>
+                    <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <FileText className="w-5 h-5 text-gray-400" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 truncate max-w-[200px]">
+                            {doc.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {(doc.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
                         </div>
                       </div>
-                    </motion.div>
+                      <div className="flex items-center space-x-2">
+                        {doc.status === 'processing' && (
+                          <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                        )}
+                        {doc.status === 'ready' && (
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                        )}
+                        {doc.status === 'error' && (
+                          <XCircle className="w-4 h-4 text-red-500" />
+                        )}
+                        <button
+                          onClick={() => removeDocument(doc.id)}
+                          className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   ))
                 )}
               </div>
             </div>
           </div>
 
-          {/* Right Panel - AI Chat */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 flex flex-col max-h-full">
-            {/* Chat Header */}
-            <div className="border-b border-gray-200 p-6 flex-shrink-0">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-                  <Bot className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">AI Assistant</h2>
-                  <p className="text-sm text-gray-600">
-                    Powered by {aiProviderStatus?.currentProvider ? getProviderDisplayName(aiProviderStatus.currentProvider) : 'AI'} • Ask me anything about investment analysis or board governance
-                  </p>
+          {/* Right Panel: AI Chat Interface */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 h-[800px] flex flex-col">
+              {/* Chat Header */}
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">AI Assistant</h2>
+                    <p className="text-sm text-gray-500">
+                      {currentSessionId ? `Session: ${chatSessions.find(s => s.id === currentSessionId)?.title || 'Current Chat'}` : 'Start a new conversation'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={createNewChatSession}
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>New Chat</span>
+                  </button>
                 </div>
               </div>
-            </div>
 
-            {/* Chat Messages - Fixed height with scroll */}
-            <div 
-              ref={chatContainerRef}
-              className="flex-1 overflow-y-auto p-6 space-y-6 min-h-0"
-              style={{ maxHeight: 'calc(100vh - 400px)' }}
-            >
-              {chatMessages.map((message) => (
-                <motion.div
-                  key={message.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`flex items-start space-x-3 max-w-[90%] ${
-                    message.type === 'user' ? 'flex-row-reverse space-x-reverse' : ''
-                  }`}>
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                      message.type === 'user' 
-                        ? 'bg-blue-600' 
-                        : 'bg-gradient-to-br from-purple-500 to-pink-500'
-                    }`}>
-                      {message.type === 'user' ? (
-                        <User className="w-4 h-4 text-white" />
-                      ) : (
-                        <Bot className="w-4 h-4 text-white" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      {/* Text Message */}
-                      <div className={`rounded-2xl px-4 py-3 ${
-                        message.type === 'user'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-900'
-                      }`}>
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-                        {isClient && (
-                          <p className={`text-xs mt-2 ${
-                            message.type === 'user' ? 'text-blue-200' : 'text-gray-500'
-                          }`}>
-                            {message.timestamp.toLocaleTimeString()}
-                          </p>
+              {/* Chat Messages */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4" ref={chatContainerRef}>
+                {chatMessages.length === 0 ? (
+                  <div className="text-center py-12">
+                    <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Hi! I'm your BoardBravo AI assistant. 📊
+                    </h3>
+                    <p className="text-gray-500 mb-6">
+                      Attach documents and start analyzing, or connect your data sources to get started!
+                    </p>
+                  </div>
+                ) : (
+                  chatMessages.map((message) => (
+                    <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[80%] ${
+                        message.type === 'user' 
+                          ? 'bg-blue-600 text-white rounded-lg rounded-br-sm' 
+                          : 'bg-gray-100 text-gray-900 rounded-lg rounded-bl-sm'
+                      } px-4 py-3`}>
+                        {message.type === 'user' ? (
+                          <p className="text-sm">{message.content}</p>
+                        ) : (
+                          <div className="space-y-4">
+                            {message.content && (
+                              <div className="prose prose-sm max-w-none">
+                                <ReactMarkdown>{message.content}</ReactMarkdown>
+                              </div>
+                            )}
+                            
+                            {message.charts && message.charts.length > 0 && (
+                              <div className="space-y-4">
+                                {message.charts.map((chart, index) => (
+                                  <ChartRenderer key={index} chartData={chart} />
+                                ))}
+                              </div>
+                            )}
+                            
+                            {message.summary && (
+                              <div className="space-y-3">
+                                <h4 className="font-semibold text-gray-900">{message.summary.title}</h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  {message.summary.metrics.map((metric, index) => (
+                                    <div key={index} className="bg-white rounded-lg p-4 border border-gray-100">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm font-medium text-gray-600">{metric.title}</span>
+                                        {metric.change !== undefined && metric.changeType === 'positive' && (
+                                          <TrendingUp className="w-4 h-4 text-green-500" />
+                                        )}
+                                        {metric.change !== undefined && metric.changeType === 'negative' && (
+                                          <TrendingDown className="w-4 h-4 text-red-500" />
+                                        )}
+                                      </div>
+                                      <div className="flex items-baseline space-x-2">
+                                        <span className="text-xl font-bold text-gray-900">{metric.value}</span>
+                                        {metric.change !== undefined && (
+                                          <span className={`text-sm font-medium ${
+                                            metric.changeType === 'positive' ? 'text-green-600' : 
+                                            metric.changeType === 'negative' ? 'text-red-600' : 'text-gray-600'
+                                          }`}>
+                                            {metric.change > 0 ? '+' : ''}{metric.change}%
+                                          </span>
+                                        )}
+                                      </div>
+                                        {metric.description && (
+                                          <p className="text-xs text-gray-500 mt-1">{metric.description}</p>
+                                        )}
+                                    </div>
+                                  ))}
+                                </div>
+                                {message.summary.insights && message.summary.insights.length > 0 && (
+                                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                                    <h5 className="font-medium text-blue-900 mb-2">Key Insights</h5>
+                                    <ul className="space-y-1">
+                                      {message.summary.insights.map((insight, index) => (
+                                        <li key={index} className="text-sm text-blue-800">• {insight}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         )}
-                      </div>
-                      
-                      {/* Render Charts First (if available) */}
-                      {message.charts && message.charts.length > 0 && (
-                        <div className="mt-4 space-y-4">
-                          {message.charts.map((chart, index) => (
-                            <div key={index}>
-                              <ChartRenderer chartData={chart} />
-                            </div>
-                          ))}
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-xs opacity-70">
+                            {isClient ? format(message.timestamp, 'HH:mm') : ''}
+                          </span>
                         </div>
-                      )}
-                      
-                      {/* Render Summary Card (if available) */}
-                      {message.summary && (
-                        <div className="mt-4">
-                          <SummaryCard
-                            title={message.summary.title}
-                            metrics={message.summary.metrics}
-                            insights={message.summary.insights}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-              
-              {isProcessing && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex justify-start"
-                >
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                      <Bot className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="bg-gray-100 rounded-2xl px-4 py-3">
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" />
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
                       </div>
                     </div>
-                  </div>
-                </motion.div>
-              )}
-              
-              {/* Invisible div for auto-scroll */}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Chat Input - Fixed at bottom */}
-            <div className="border-t border-gray-200 p-6 flex-shrink-0">
-              <div className="flex items-end space-x-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <textarea
-                      value={currentMessage}
-                      onChange={(e) => setCurrentMessage(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault()
-                          sendMessage()
-                        }
-                      }}
-                      placeholder="Ask me about investment analysis, board governance, financial metrics, risk assessment, or upload documents for specific analysis..."
-                      className="w-full p-4 pr-12 border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      rows={3}
-                      disabled={isProcessing || aiProviderStatus?.status === 'not_configured'}
-                    />
-                    <button className="absolute bottom-3 right-3 p-1 text-gray-400 hover:text-gray-600">
-                      <Paperclip className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-                <button
-                  onClick={sendMessage}
-                  disabled={!currentMessage.trim() || isProcessing || aiProviderStatus?.status === 'not_configured'}
-                  className="p-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isProcessing ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <Send className="w-5 h-5" />
-                  )}
-                </button>
+                  ))
+                )}
+                <div ref={messagesEndRef} />
               </div>
 
               {/* Sample Questions */}
-              <div className="mt-4">
-                <p className="text-sm text-gray-600 mb-3 font-medium">💡 Quick Start - Try these questions:</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {getSampleQuestions().map((question, index) => (
-                    <button
-                      key={index}
-                      onClick={() => {
-                        setCurrentMessage(question.text)
-                        // Auto-send the message
-                        setTimeout(() => {
-                          const userMessage = {
-                            id: Math.random().toString(36).substr(2, 9),
-                            type: 'user' as const,
-                            content: question.text,
-                            timestamp: new Date()
-                          }
-                          setChatMessages(prev => [...prev, userMessage])
-                          setCurrentMessage('')
-                          setIsProcessing(true)
+              <div className="px-6 py-4 border-t border-gray-200">
+                <div className="mb-4">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Quick Start</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {getSampleQuestions().map((question, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
                           handleSampleQuestion(question.text)
-                        }, 100)
-                      }}
-                      disabled={isProcessing || aiProviderStatus?.status === 'not_configured'}
-                      className="text-left p-2 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <div className="flex items-center space-x-2 mb-1">
-                        <span className="text-xs text-gray-500 uppercase tracking-wide">{question.source}</span>
-                      </div>
-                      <p className="text-sm text-gray-800">{question.text}</p>
-                    </button>
-                  ))}
+                        }}
+                        disabled={isProcessing || aiProviderStatus?.status === 'not_configured'}
+                        className="text-left p-3 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 rounded-lg border border-blue-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-blue-200/50 hover:shadow-xl"
+                      >
+                        <div className="flex items-center space-x-2 mb-1">
+                          <span className="text-xs text-blue-600 uppercase tracking-wide font-medium">{question.source}</span>
+                        </div>
+                        <p className="text-sm text-blue-900 font-medium">{question.text}</p>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {aiProviderStatus?.status === 'not_configured' && (
-                <div className="mt-3 text-sm text-orange-500">
-                  ⚠️ Configure AI provider to chat
-                </div>
-              )}
+              {/* Chat Input */}
+              <div className="p-6 border-t border-gray-200">
+                <form onSubmit={sendMessage} className="flex space-x-3">
+                  <input
+                    type="text"
+                    value={currentMessage}
+                    onChange={(e) => setCurrentMessage(e.target.value)}
+                    placeholder="Ask about your documents..."
+                    disabled={isProcessing || aiProviderStatus?.status === 'not_configured'}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!currentMessage.trim() || isProcessing || aiProviderStatus?.status === 'not_configured'}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                    <span>{isProcessing ? 'Processing...' : 'Send'}</span>
+                  </button>
+                </form>
+              </div>
             </div>
           </div>
         </div>
