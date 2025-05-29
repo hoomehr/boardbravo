@@ -769,8 +769,8 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       <Navbar currentPage="dashboard" />
-      <div className="container mx-auto px-4 py-8 pb-16">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="px-6 py-8 pb-16">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 max-w-none">
           {/* Left Panel: Chat History + Documents */}
           <div className="lg:col-span-1 space-y-6">
             {/* Chat History */}
@@ -938,7 +938,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Right Panel: AI Chat Interface */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-3">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 h-[800px] flex flex-col">
               {/* Chat Header */}
               <div className="p-6 border-b border-gray-200">
