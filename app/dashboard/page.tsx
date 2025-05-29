@@ -769,7 +769,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       <Navbar currentPage="dashboard" />
-      <div className="px-6 py-8 pb-16">
+      <div className="px-14 py-8 pb-16">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 max-w-none">
           {/* Left Panel: Chat History + Documents */}
           <div className="lg:col-span-1 space-y-6">
@@ -1059,7 +1059,7 @@ export default function DashboardPage() {
               <div className="px-6 py-4 border-t border-gray-200">
                 <div className="mb-4">
                   <h3 className="text-sm font-medium text-gray-700 mb-3">Quick Start</h3>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     {getSampleQuestions().map((question, index) => (
                       <button
                         key={index}
