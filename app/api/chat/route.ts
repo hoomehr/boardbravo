@@ -3,7 +3,16 @@ import { createAIProvider, getAvailableProviders } from '@/lib/ai-service'
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, documents } = await request.json()
+    const { 
+      message, 
+      documents, 
+      integrations,
+      isAgentAction,
+      actionTitle,
+      boardId,
+      isMention,
+      isQuickAction
+    } = await request.json()
 
     if (!message) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
@@ -22,8 +31,20 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
+    // Add context for agent actions and integrations
+    let contextualMessage = message
+    
+    if (isAgentAction && actionTitle) {
+      contextualMessage = `Agent Action: ${actionTitle}\n\nRequest: ${message}\n\nPlease provide detailed analysis based on all available documents${integrations && integrations.length > 0 ? ' and connected integrations' : ''}.`
+    }
+    
+    if (integrations && integrations.length > 0) {
+      const integrationNames = integrations.map((i: any) => i.name).join(', ')
+      contextualMessage += `\n\nNote: The following integrations are available: ${integrationNames}`
+    }
+
     // Generate response using the configured provider
-    const aiResponse = await aiProvider.generateResponse(message, documents)
+    const aiResponse = await aiProvider.generateResponse(contextualMessage, documents)
 
     return NextResponse.json({ 
       response: aiResponse.response,
