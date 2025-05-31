@@ -16,14 +16,14 @@ export default function HomePage() {
               <div className="inline-flex items-center bg-blue-50 border border-blue-100 rounded-full px-4 py-2 mb-8">
                 <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
                 <span className="text-blue-700 text-sm font-medium">Enterprise Agentic AI</span>
-              </div>
+            </div>
               
               {/* Main Heading */}
               <h1 className="text-6xl font-bold text-gray-900 mb-6 leading-tight">
                 Autonomous Board
                 <br />
                 <span className="text-blue-600">Intelligence</span>
-              </h1>
+          </h1>
               
               <p className="text-xl text-gray-600 mb-12 max-w-2xl mx-auto leading-relaxed">
                 Deploy AI agents that independently analyze board documents, monitor governance metrics, 
@@ -31,18 +31,18 @@ export default function HomePage() {
               </p>
               
               {/* Simple CTA */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link 
-                  href="/dashboard"
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link 
+              href="/dashboard"
                   className="bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors inline-flex items-center justify-center space-x-2"
-                >
+            >
                   <span>Deploy AI Agents</span>
-                  <ArrowRight className="w-5 h-5" />
-                </Link>
+              <ArrowRight className="w-5 h-5" />
+            </Link>
                 
                 <button className="bg-white border border-gray-300 text-gray-700 px-8 py-4 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
                   View Capabilities
-                </button>
+            </button>
               </div>
             </div>
           </div>
@@ -66,18 +66,18 @@ export default function HomePage() {
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">Autonomous Analysis</h3>
                 <p className="text-gray-600 leading-relaxed">
                   AI agents independently process board materials, extract key insights, and identify critical patterns without manual oversight.
-                </p>
-              </div>
+            </p>
+          </div>
 
               <div className="text-center">
                 <div className="w-16 h-16 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-6">
                   <Shield className="w-8 h-8 text-green-600" />
-                </div>
+            </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">Risk Monitoring</h3>
                 <p className="text-gray-600 leading-relaxed">
                   Continuous surveillance of governance metrics with intelligent alerts for compliance gaps and strategic risks.
-                </p>
-              </div>
+            </p>
+          </div>
 
               <div className="text-center">
                 <div className="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-6">
@@ -162,8 +162,8 @@ export default function HomePage() {
                       <CheckCircle className="w-4 h-4 mr-1" />
                       Current
                     </span>
-                  </div>
-                  
+          </div>
+
                   <div className="pt-4 border-t border-gray-100">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-500">Last Agent Analysis</span>
@@ -198,8 +198,8 @@ export default function HomePage() {
               <div className="text-center">
                 <div className="text-3xl font-bold text-purple-600 mb-2">85%</div>
                 <div className="text-sm text-gray-600">Time Saved</div>
-              </div>
-              
+          </div>
+
               <div className="text-center">
                 <div className="text-3xl font-bold text-gray-900 mb-2">SOC 2</div>
                 <div className="text-sm text-gray-600">Compliant</div>
@@ -226,8 +226,8 @@ export default function HomePage() {
                 <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">2</div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Deploy AI Agents</h3>
                 <p className="text-gray-600">Agents begin autonomous analysis and monitoring of your governance data</p>
-              </div>
-              
+          </div>
+
               <div className="text-center">
                 <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">3</div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Receive Insights</h3>
@@ -246,15 +246,15 @@ export default function HomePage() {
               </h2>
               <p className="text-lg text-gray-600 mb-8">
                 Join executives who have already enhanced their governance with AI agents.
-              </p>
+          </p>
               
-              <Link 
-                href="/dashboard"
+          <Link 
+            href="/dashboard"
                 className="bg-blue-600 text-white px-10 py-4 rounded-lg font-semibold text-lg hover:bg-blue-700 transition-colors inline-flex items-center space-x-2"
-              >
+          >
                 <span>Get Started</span>
-                <ArrowRight className="w-5 h-5" />
-              </Link>
+            <ArrowRight className="w-5 h-5" />
+          </Link>
               
               <p className="text-sm text-gray-500 mt-4">
                 Enterprise-grade security • SOC 2 Type II certified • 24/7 support
