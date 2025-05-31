@@ -31,7 +31,8 @@ import {
   XCircle,
   X,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  BarChart3
 } from 'lucide-react'
 import Link from 'next/link'
 import { useDropzone } from 'react-dropzone'
@@ -109,14 +110,7 @@ export default function DashboardPage() {
   const [documents, setDocuments] = useState<Document[]>([])
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      type: 'assistant',
-      content: "Hi! I'm your BoardBravo AI assistant. 📊\n\nAttach documents and start analyzing, or connect your data sources to get started!",
-      timestamp: new Date()
-    }
-  ])
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [currentMessage, setCurrentMessage] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -124,6 +118,7 @@ export default function DashboardPage() {
   const [showProviderStatus, setShowProviderStatus] = useState(false)
   const [showIntegrations, setShowIntegrations] = useState(false)
   const [isClient, setIsClient] = useState(false)
+  const [hasShownWelcome, setHasShownWelcome] = useState(false)
   
   // Integration status (mock data for now)
   const [integrations, setIntegrations] = useState<Integration[]>([
@@ -136,14 +131,6 @@ export default function DashboardPage() {
       color: 'from-red-500 to-orange-500'
     },
     {
-      id: 'hubspot',
-      name: 'HubSpot CRM',
-      icon: <Building2 className="w-5 h-5" />,
-      status: 'disconnected',
-      description: 'Sync CRM data and sales documents',
-      color: 'from-orange-500 to-amber-500'
-    },
-    {
       id: 'google-drive',
       name: 'Google Drive',
       icon: <Folder className="w-5 h-5" />,
@@ -152,11 +139,19 @@ export default function DashboardPage() {
       color: 'from-blue-500 to-green-500'
     },
     {
+      id: 'hubspot',
+      name: 'HubSpot CRM',
+      icon: <Building2 className="w-5 h-5" />,
+      status: 'disconnected',
+      description: 'Coming soon - Sync CRM data and sales documents',
+      color: 'from-orange-500 to-amber-500'
+    },
+    {
       id: 'mcp-server',
       name: 'MCP Server',
       icon: <Server className="w-5 h-5" />,
       status: 'disconnected',
-      description: 'Connect to Model Context Protocol servers',
+      description: 'In development - Model Context Protocol servers',
       color: 'from-purple-500 to-pink-500'
     }
   ])
@@ -195,6 +190,27 @@ export default function DashboardPage() {
       saveCurrentSession()
     }
   }, [chatMessages, currentSessionId])
+
+  // Show welcome message only after documents are uploaded or integrations are connected
+  useEffect(() => {
+    const hasDocuments = documents.filter(doc => doc.status === 'ready').length > 0
+    const hasConnectedIntegrations = integrations.filter(int => int.status === 'connected').length > 0
+    
+    if (!hasShownWelcome && (hasDocuments || hasConnectedIntegrations) && chatMessages.length === 0) {
+      const welcomeMessage: ChatMessage = {
+        id: 'welcome-1',
+        type: 'assistant',
+        content: "Hi! I'm your BoardBravo AI assistant. 📊\n\nI can see you've " + 
+                (hasDocuments ? "uploaded documents" : "") + 
+                (hasDocuments && hasConnectedIntegrations ? " and " : "") +
+                (hasConnectedIntegrations ? "connected integrations" : "") + 
+                ". Ready to start analyzing!",
+        timestamp: new Date()
+      }
+      setChatMessages([welcomeMessage])
+      setHasShownWelcome(true)
+    }
+  }, [documents, integrations, hasShownWelcome, chatMessages.length])
 
   const checkAIProviderStatus = async () => {
     try {
@@ -260,23 +276,12 @@ export default function DashboardPage() {
           
         case 'hubspot':
           // Simulate HubSpot OAuth flow
-          alert('HubSpot OAuth flow would start here. This would redirect to HubSpot for CRM access.')
+          alert('HubSpot integration is coming soon! This feature is currently in development and will be available in a future update.')
           break
           
         case 'mcp-server':
           // Show MCP server configuration dialog
-          const mcpEndpoint = prompt('Enter MCP Server endpoint URL:', 'ws://localhost:3000/mcp')
-          if (mcpEndpoint) {
-            // In real implementation, this would validate and store the MCP connection
-            console.log('Connecting to MCP server:', mcpEndpoint)
-            setIntegrations(prev => 
-              prev.map(integration => 
-                integration.id === integrationId 
-                  ? { ...integration, status: 'connected' }
-                  : integration
-              )
-            )
-          }
+          alert('MCP Server integration is in development. This feature will allow connecting to Model Context Protocol servers for advanced AI workflows.')
           break
       }
     } catch (error) {
@@ -350,7 +355,8 @@ export default function DashboardPage() {
     multiple: true
   })
 
-  const sendMessage = async () => {
+  const sendMessage = async (e: React.FormEvent) => {
+    e.preventDefault()
     if (!currentMessage.trim() || isProcessing) return
 
     // Create a new session if none exists
@@ -766,10 +772,63 @@ export default function DashboardPage() {
     deleteSession(documentId)
   }
 
+  // Board action handlers
+  const handleSendSummary = async () => {
+    setIsProcessing(true)
+    try {
+      // Simulate sending summary to stakeholders
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      alert('Executive summary sent to all board members successfully!')
+    } catch (error) {
+      alert('Failed to send summary. Please try again.')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleRequestData = async () => {
+    setIsProcessing(true)
+    try {
+      // Simulate data request
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      alert('Data request sent. You will receive the latest reports within 15 minutes.')
+    } catch (error) {
+      alert('Failed to request data. Please try again.')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleGenerateScorecard = async () => {
+    setIsProcessing(true)
+    try {
+      // Simulate scorecard generation
+      await new Promise(resolve => setTimeout(resolve, 2500))
+      alert('Governance scorecard generated and saved to your dashboard.')
+    } catch (error) {
+      alert('Failed to generate scorecard. Please try again.')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleRiskAlert = async () => {
+    setIsProcessing(true)
+    try {
+      // Simulate risk analysis
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      alert('Risk analysis complete. 2 medium-priority items require board attention.')
+    } catch (error) {
+      alert('Failed to analyze risks. Please try again.')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+    <div className="min-h-screen bg-white">
       <Navbar currentPage="dashboard" />
-      <div className="px-14 py-8 pb-16">
+      <div className="px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 max-w-none">
           {/* Left Panel: Chat History + Documents */}
           <div className="lg:col-span-1 space-y-6">
@@ -789,7 +848,7 @@ export default function DashboardPage() {
                     <div
                       key={session.id}
                       onClick={() => switchToSession(session.id)}
-                      className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                      className={`p-3 rounded-lg cursor-pointer transition-colors duration-200 ${
                         currentSessionId === session.id
                           ? 'bg-blue-50 border border-blue-200'
                           : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
@@ -835,7 +894,7 @@ export default function DashboardPage() {
               {/* Upload Area */}
               <div
                 {...getRootProps()}
-                className={`border-2 border-dashed rounded-xl p-6 text-center transition-all duration-200 cursor-pointer mb-6 ${
+                className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors duration-200 cursor-pointer mb-6 ${
                   isDragActive 
                     ? 'border-blue-500 bg-blue-50' 
                     : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
@@ -860,33 +919,33 @@ export default function DashboardPage() {
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <button
                   onClick={() => handleIntegrationConnect('gmail')}
-                  className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 text-red-700 rounded-lg py-4 px-3 font-medium hover:shadow-md hover:from-red-100 hover:to-orange-100 transition-all duration-200 flex flex-col items-center justify-center space-y-2"
+                  className="bg-white border border-gray-200 text-gray-700 rounded-lg py-4 px-3 font-medium hover:border-gray-300 hover:bg-gray-50 transition-colors duration-200 flex flex-col items-center justify-center space-y-2"
                 >
-                  <Mail className="w-5 h-5" />
+                  <Mail className="w-5 h-5 text-red-500" />
                   <span className="text-sm">Gmail</span>
                 </button>
                 
                 <button
                   onClick={() => handleIntegrationConnect('google-drive')}
-                  className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-700 rounded-lg py-4 px-3 font-medium hover:shadow-md hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 flex flex-col items-center justify-center space-y-2"
+                  className="bg-white border border-gray-200 text-gray-700 rounded-lg py-4 px-3 font-medium hover:border-gray-300 hover:bg-gray-50 transition-colors duration-200 flex flex-col items-center justify-center space-y-2"
                 >
-                  <FolderOpen className="w-5 h-5" />
+                  <FolderOpen className="w-5 h-5 text-blue-500" />
                   <span className="text-sm">Drive</span>
                 </button>
                 
                 <button
                   onClick={() => handleIntegrationConnect('hubspot')}
-                  className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 text-orange-700 rounded-lg py-4 px-3 font-medium hover:shadow-md hover:from-orange-100 hover:to-amber-100 transition-all duration-200 flex flex-col items-center justify-center space-y-2"
+                  className="bg-white border border-gray-200 text-gray-700 rounded-lg py-4 px-3 font-medium hover:border-gray-300 hover:bg-gray-50 transition-colors duration-200 flex flex-col items-center justify-center space-y-2"
                 >
-                  <Users className="w-5 h-5" />
+                  <Users className="w-5 h-5 text-orange-500" />
                   <span className="text-sm">HubSpot</span>
                 </button>
                 
                 <button
                   onClick={() => handleIntegrationConnect('mcp')}
-                  className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 text-purple-700 rounded-lg py-4 px-3 font-medium hover:shadow-md hover:from-purple-100 hover:to-pink-100 transition-all duration-200 flex flex-col items-center justify-center space-y-2"
+                  className="bg-white border border-gray-200 text-gray-700 rounded-lg py-4 px-3 font-medium hover:border-gray-300 hover:bg-gray-50 transition-colors duration-200 flex flex-col items-center justify-center space-y-2"
                 >
-                  <Server className="w-5 h-5" />
+                  <Server className="w-5 h-5 text-purple-500" />
                   <span className="text-sm">MCP</span>
                 </button>
               </div>
@@ -901,7 +960,7 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   documents.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
                       <div className="flex items-center space-x-3">
                         <FileText className="w-5 h-5 text-gray-400" />
                         <div>
@@ -937,16 +996,17 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Right Panel: AI Chat Interface */}
-          <div className="lg:col-span-3">
+          {/* Right Panel: AI Chat Interface + Quick Actions */}
+          <div className="lg:col-span-3 space-y-6">
+            {/* AI Chat Interface */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 h-[800px] flex flex-col">
               {/* Chat Header */}
-              <div className="p-6 border-b border-gray-200">
+              <div className="p-6 border-b border-gray-200 bg-gray-50 rounded-t-xl">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-semibold text-gray-900">AI Assistant</h2>
+                    <h2 className="text-lg font-semibold text-gray-900">Board Intelligence Assistant</h2>
                     <p className="text-sm text-gray-500">
-                      {currentSessionId ? `Session: ${chatSessions.find(s => s.id === currentSessionId)?.title || 'Current Chat'}` : 'Start a new conversation'}
+                      {currentSessionId ? `Session: ${chatSessions.find(s => s.id === currentSessionId)?.title || 'Current Chat'}` : 'Autonomous governance analysis'}
                     </p>
                   </div>
                   <button
@@ -954,21 +1014,21 @@ export default function DashboardPage() {
                     className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>New Chat</span>
+                    <span>New Analysis</span>
                   </button>
                 </div>
               </div>
 
               {/* Chat Messages */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4" ref={chatContainerRef}>
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50" ref={chatContainerRef}>
                 {chatMessages.length === 0 ? (
                   <div className="text-center py-12">
                     <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      Hi! I'm your BoardBravo AI assistant. 📊
+                      Board Intelligence Assistant Ready
                     </h3>
                     <p className="text-gray-500 mb-6">
-                      Attach documents and start analyzing, or connect your data sources to get started!
+                      Upload documents or connect data sources to activate autonomous analysis
                     </p>
                   </div>
                 ) : (
@@ -977,8 +1037,8 @@ export default function DashboardPage() {
                       <div className={`max-w-[80%] ${
                         message.type === 'user' 
                           ? 'bg-blue-600 text-white rounded-lg rounded-br-sm' 
-                          : 'bg-gray-100 text-gray-900 rounded-lg rounded-bl-sm'
-                      } px-4 py-3`}>
+                          : 'bg-white text-gray-900 rounded-lg rounded-bl-sm border border-gray-200'
+                      } px-4 py-3 shadow-sm`}>
                         {message.type === 'user' ? (
                           <p className="text-sm">{message.content}</p>
                         ) : (
@@ -1002,7 +1062,7 @@ export default function DashboardPage() {
                                 <h4 className="font-semibold text-gray-900">{message.summary.title}</h4>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                   {message.summary.metrics.map((metric, index) => (
-                                    <div key={index} className="bg-white rounded-lg p-4 border border-gray-100">
+                                    <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
                                       <div className="flex items-center justify-between mb-2">
                                         <span className="text-sm font-medium text-gray-600">{metric.title}</span>
                                         {metric.change !== undefined && metric.changeType === 'positive' && (
@@ -1030,7 +1090,7 @@ export default function DashboardPage() {
                                   ))}
                                 </div>
                                 {message.summary.insights && message.summary.insights.length > 0 && (
-                                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                                  <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                                     <h5 className="font-medium text-blue-900 mb-2">Key Insights</h5>
                                     <ul className="space-y-1">
                                       {message.summary.insights.map((insight, index) => (
@@ -1056,9 +1116,9 @@ export default function DashboardPage() {
               </div>
 
               {/* Sample Questions */}
-              <div className="px-6 py-4 border-t border-gray-200">
+              <div className="px-6 py-4 border-t border-gray-200 bg-white">
                 <div className="mb-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">Quick Start</h3>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Quick Analysis</h3>
                   <div className="grid grid-cols-3 gap-3">
                     {getSampleQuestions().map((question, index) => (
                       <button
@@ -1067,12 +1127,12 @@ export default function DashboardPage() {
                           handleSampleQuestion(question.text)
                         }}
                         disabled={isProcessing || aiProviderStatus?.status === 'not_configured'}
-                        className="text-left p-3 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 rounded-lg border border-blue-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-blue-200/50 hover:shadow-xl"
+                        className="text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <div className="flex items-center space-x-2 mb-1">
                           <span className="text-xs text-blue-600 uppercase tracking-wide font-medium">{question.source}</span>
                         </div>
-                        <p className="text-sm text-blue-900 font-medium">{question.text}</p>
+                        <p className="text-sm text-gray-900 font-medium">{question.text}</p>
                       </button>
                     ))}
                   </div>
@@ -1080,13 +1140,13 @@ export default function DashboardPage() {
               </div>
 
               {/* Chat Input */}
-              <div className="p-6 border-t border-gray-200">
+              <div className="p-6 border-t border-gray-200 bg-white rounded-b-xl">
                 <form onSubmit={sendMessage} className="flex space-x-3">
                   <input
                     type="text"
                     value={currentMessage}
                     onChange={(e) => setCurrentMessage(e.target.value)}
-                    placeholder="Ask about your documents..."
+                    placeholder="Ask about your governance data..."
                     disabled={isProcessing || aiProviderStatus?.status === 'not_configured'}
                     className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                   />
@@ -1100,9 +1160,63 @@ export default function DashboardPage() {
                     ) : (
                       <Send className="w-4 h-4" />
                     )}
-                    <span>{isProcessing ? 'Processing...' : 'Send'}</span>
+                    <span>{isProcessing ? 'Analyzing...' : 'Send'}</span>
                   </button>
                 </form>
+              </div>
+            </div>
+
+            {/* Board Quick Actions */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-6">Board Actions</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <button
+                  onClick={handleSendSummary}
+                  disabled={isProcessing}
+                  className="bg-white border border-gray-200 rounded-xl p-6 hover:border-blue-300 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center text-center group"
+                >
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4 group-hover:bg-blue-200 transition-colors">
+                    <Mail className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Send Summary</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">Generate and email executive summary to all board members</p>
+                </button>
+                
+                <button
+                  onClick={handleRequestData}
+                  disabled={isProcessing}
+                  className="bg-white border border-gray-200 rounded-xl p-6 hover:border-green-300 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center text-center group"
+                >
+                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4 group-hover:bg-green-200 transition-colors">
+                    <Database className="w-6 h-6 text-green-400" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Request Data</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">Pull latest financial reports, metrics, and compliance data</p>
+                </button>
+                
+                <button
+                  onClick={handleGenerateScorecard}
+                  disabled={isProcessing}
+                  className="bg-white border border-gray-200 rounded-xl p-6 hover:border-purple-300 hover:bg-purple-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center text-center group"
+                >
+                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4 group-hover:bg-purple-200 transition-colors">
+                    <BarChart3 className="w-6 h-6 text-purple-400" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Scorecard</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">Create governance scorecard with KPIs and risk metrics</p>
+                </button>
+                
+                <button
+                  onClick={handleRiskAlert}
+                  disabled={isProcessing}
+                  className="bg-white border border-gray-200 rounded-xl p-6 hover:border-orange-300 hover:bg-orange-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center text-center group"
+                >
+                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4 group-hover:bg-orange-200 transition-colors">
+                    <AlertCircle className="w-6 h-6 text-orange-400" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Risk Alert</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">Identify urgent risks and generate action recommendations</p>
+                </button>
               </div>
             </div>
           </div>

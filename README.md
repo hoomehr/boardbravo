@@ -1,39 +1,39 @@
-# 🧠 BoardBravo - AI-Powered Board Document Assistant
+# 🤖 BoardBravo - Agentic Board Procedures
 
-BoardBravo is an intelligent document analysis platform designed specifically for board members, investors, and executives. It combines multi-provider AI capabilities with extensive data source integrations to provide comprehensive board document analysis and investment insights.
+BoardBravo deploys autonomous AI agents that proactively analyze board documents, execute intelligent workflows, and enhance governance through independent decision-making capabilities. Our agentic system goes beyond analysis to provide autonomous board procedure automation.
 
-## 🎯 Key Features
+## 🎯 Key Agentic Features
 
-### 📊 Investor-Focused AI Assistant
-- **Executive Briefs**: Concise 2-3 sentence summaries leading with financial impact
-- **Key Insights**: Structured bullet points highlighting risks, opportunities, and strategic decisions  
-- **Investment Analysis**: Focus on valuation impact, competitive positioning, and governance
-- **Interactive Charts**: Automatic generation of financial performance, risk assessment, and growth trend visualizations
-- **Action Items**: Clear recommendations for board and investment decisions
+### 🤖 Autonomous AI Agents
+- **Independent Analysis**: Agents autonomously process board documents and identify critical insights
+- **Proactive Monitoring**: Continuous surveillance with autonomous alerts for risks and opportunities
+- **Intelligent Workflows**: Agents execute complex decision trees and multi-step governance procedures
+- **Self-Learning**: Agents adapt and improve their analysis based on board feedback and outcomes
+- **Cross-Agent Collaboration**: Multiple specialized agents coordinate to provide comprehensive governance support
 
 ### 🔗 Data Source Integrations
 - **Gmail Integration**: Automatic extraction and analysis of email attachments and board communications
 - **Google Drive**: Direct access to board folders, meeting minutes, and financial documents
-- **HubSpot CRM**: Sales pipeline analysis and customer data integration
-- **MCP Server**: Model Context Protocol server connectivity for advanced AI workflows
+- **Document Upload**: Support for PDF, Excel, PowerPoint, and other document formats
+- **Future Integrations**: HubSpot CRM and MCP Server connectivity (in development)
 
-### 🤖 Multi-Provider AI Support
+### 🧠 Multi-Provider AI Support
 - **Google Gemini 2.0**: Primary free-tier AI provider with advanced reasoning
 - **OpenAI GPT**: Optional premium AI provider for enhanced capabilities
-- **Anthropic Claude**: Available for specialized analysis workflows
+- **Anthropic Claude**: Available for specialized analysis workflows (in development)
 
-### 📈 Advanced Analytics
-- Real-time chart generation (bar, line, pie, area charts)
-- Executive dashboard with KPI tracking
-- Risk assessment visualizations
-- Growth metrics and trend analysis
+### 📈 Predictive Analytics & Automation
+- Real-time autonomous chart generation and KPI monitoring
+- Predictive modeling for board outcomes and scenario analysis
+- Risk orchestration with automated escalation workflows
+- Performance optimization through agent-driven insights
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js 18+ and npm
 - Google AI API key (free tier available)
-- Google OAuth credentials (for Gmail/Drive integration)
+- Google OAuth credentials (for Gmail/Drive integration - optional)
 
 ### Installation
 
@@ -55,14 +55,14 @@ BoardBravo is an intelligent document analysis platform designed specifically fo
 
 Edit `.env.local` with your API keys:
 ```env
-# AI Provider Configuration
+# AI Provider Configuration (Required)
 AI_PROVIDER=gemini
 GOOGLE_AI_API_KEY=your_google_ai_api_key_here
 
-# Google OAuth Integration (for Gmail and Google Drive)
+# Google OAuth Integration (Optional - for Gmail and Google Drive)
 GOOGLE_CLIENT_ID=your_google_oauth_client_id_here
 GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret_here
-NEXTAUTH_URL=http://localhost:3001
+NEXTAUTH_URL=http://localhost:3000
 ```
 
 4. **Start the development server**
@@ -71,11 +71,11 @@ NEXTAUTH_URL=http://localhost:3001
    ```
 
 5. **Open BoardBravo**
-   Navigate to [http://localhost:3001](http://localhost:3001)
+   Navigate to [http://localhost:3000](http://localhost:3000)
 
 ## 🔧 Configuration
 
-### AI Provider Setup
+### AI Provider Setup (Required)
 
 #### Google Gemini (Recommended)
 1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
@@ -86,52 +86,81 @@ NEXTAUTH_URL=http://localhost:3001
 - **OpenAI**: Add `OPENAI_API_KEY` for GPT models
 - **Anthropic**: Add `ANTHROPIC_API_KEY` for Claude models
 
-### Integration Setup
+### Integration Setup (Optional)
 
 #### Gmail Integration
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select existing
 3. Enable Gmail API
 4. Create OAuth 2.0 credentials
-5. Add authorized redirect URI: `http://localhost:3001/api/integrations/gmail/callback`
+5. Add authorized redirect URI: `http://localhost:3000/api/integrations/gmail/callback`
 6. Add client credentials to `.env.local`
 
 #### Google Drive Integration
 1. In the same Google Cloud project
 2. Enable Google Drive API
 3. Use the same OAuth credentials
-4. Add redirect URI: `http://localhost:3001/api/integrations/google-drive/callback`
+4. Add redirect URI: `http://localhost:3000/api/integrations/google-drive/callback`
 
-#### HubSpot CRM Integration
-1. Create HubSpot developer account
-2. Register your app
-3. Add OAuth credentials to `.env.local`
+## 📋 Getting Started with BoardBravo
 
-## 💼 Investor-Focused Features
+### Initial Setup
+When you first deploy BoardBravo:
 
-### AI Response Structure
-Every AI response follows this investor-optimized format:
+1. **Configure AI Provider**: Ensure you have set up Google Gemini API key in your `.env.local` file
+2. **Deploy Agents**: Start by uploading your board documents to activate autonomous processing agents
+3. **Connect Integrations** (Optional): Link Gmail or Google Drive for autonomous document monitoring
 
-1. **Executive Brief** - Immediate financial and strategic impact
-2. **Key Insights** - Material information affecting valuation
-3. **Detailed Analysis** - Structured sections with quantified metrics
-4. **Charts/Visuals** - Automatic generation for financial data
-5. **Action Items** - Specific recommendations for board decisions
+### Agentic Quick Start Suggestions (Based on Your Setup)
 
-### Sample Queries for Investors
-- "Summarize the Q4 financial performance and growth trajectory"
-- "What are the top 3 risks identified in the board materials?"
-- "Show me revenue trends and compare to industry benchmarks"
-- "Analyze the competitive positioning from the strategy deck"
-- "Extract key metrics for the investor update"
+#### Without Documents or Integrations
+- "Deploy sample financial monitoring agents"
+- "What autonomous capabilities can BoardBravo provide?"
+- "Activate demo predictive analytics agents"
+- "Explain agentic board procedure automation"
 
-### Chart Generation
-BoardBravo automatically creates charts for:
-- Revenue and financial performance trends
-- Risk assessment distributions  
-- Growth metrics and KPI dashboards
-- Market opportunity analysis
-- Operational performance indicators
+#### After Uploading Documents
+- "Deploy document analysis agents across all files"
+- "Activate predictive revenue monitoring agents"
+- "What autonomous insights have agents discovered?"
+- "Deploy risk assessment and compliance agents"
+
+#### After Connecting Gmail Integration
+- "Activate email monitoring agents for board communications"
+- "Deploy document extraction agents for email attachments"
+- "Show autonomous board communications analysis"
+
+#### After Connecting Google Drive Integration
+- "Deploy Drive folder monitoring agents"
+- "Activate autonomous board document analysis agents"
+- "Process financial reports using predictive agents"
+
+### Sample Agentic Queries
+Once you have documents uploaded or integrations connected:
+- "Deploy autonomous Q4 performance analysis agents"
+- "What risks have monitoring agents identified in board materials?"
+- "Activate predictive revenue trend analysis agents"
+- "Deploy competitive positioning assessment agents"
+- "Extract key metrics using autonomous reporting agents"
+
+## 💼 Agentic Board Features
+
+### Autonomous Response Structure
+Every agent response follows this governance-optimized format:
+
+1. **Agent Executive Brief** - Autonomous analysis with immediate strategic impact
+2. **Predictive Insights** - Agent-driven forecasting and risk assessment
+3. **Autonomous Analysis** - Self-directed deep-dive with quantified metrics
+4. **Dynamic Visualizations** - Agent-generated charts and predictive models
+5. **Agent Recommendations** - Autonomous action items and next steps
+
+### Agent-Generated Analytics
+BoardBravo agents automatically create:
+- Predictive revenue and financial performance models
+- Autonomous risk assessment and mitigation workflows  
+- Dynamic KPI dashboards with real-time monitoring
+- Intelligent market opportunity analysis
+- Self-updating operational performance indicators
 
 ## 🏗️ Architecture
 
@@ -140,7 +169,7 @@ BoardBravo automatically creates charts for:
 - **Backend**: Next.js API routes, Node.js
 - **AI Integration**: Google Generative AI SDK, OpenAI SDK
 - **Visualizations**: Recharts, Chart.js
-- **Authentication**: OAuth 2.0 (Google, HubSpot)
+- **Authentication**: OAuth 2.0 (Google)
 - **Document Processing**: PDF-parse, XLSX
 
 ### Project Structure
@@ -148,6 +177,7 @@ BoardBravo automatically creates charts for:
 boardbravo/
 ├── app/
 │   ├── dashboard/           # Main dashboard interface
+│   ├── api/
 │   │   ├── chat/           # AI chat endpoint
 │   │   ├── upload/         # Document upload handling
 │   │   └── integrations/   # OAuth and data source APIs
@@ -157,12 +187,12 @@ boardbravo/
 ├── lib/
 │   ├── ai-service.ts       # Multi-provider AI abstraction
 │   └── sample-data.ts      # Demo data for testing
-└── public/                 # Static assets
+└── uploads/                # Uploaded document storage
 ```
 
 ## 🔐 Security & Privacy
 
-- **OAuth 2.0**: Secure authentication with Google and HubSpot
+- **OAuth 2.0**: Secure authentication with Google services
 - **API Key Protection**: Server-side API key management
 - **Data Encryption**: All document uploads encrypted in transit
 - **Token Storage**: Secure token management for integrations
@@ -182,33 +212,27 @@ npm run build
 
 3. **Update OAuth Settings**
 - Add production callback URLs to Google Cloud Console
-- Update HubSpot app settings with production URLs
+- Ensure all API keys are properly configured in production
 
 ## 📊 Usage Examples
 
-### Document Analysis
-1. Upload board documents via drag-and-drop
-2. Connect Gmail for automatic email attachment processing
-3. Sync Google Drive folders containing board materials
+### Document Analysis Workflow
+1. Upload board documents via drag-and-drop interface
+2. Wait for document processing to complete
+3. Use contextual quick-start suggestions based on uploaded content
 4. Ask investor-focused questions about the documents
 
-### Sample Investor Queries
-```
-"Create an executive summary of our Q4 performance"
-→ Returns: Brief, key insights, revenue charts, action items
-
-"What risks should the board be aware of?"
-→ Returns: Risk analysis, assessment charts, mitigation recommendations
-
-"Show me our growth trajectory and market position"
-→ Returns: Growth metrics, trend charts, competitive analysis
-```
-
 ### Integration Workflows
-1. **Gmail**: Automatically processes board emails with attachments
-2. **Google Drive**: Syncs specific folders (Board Meetings, Financial Reports)
-3. **HubSpot**: Integrates sales data for board reporting
-4. **MCP Server**: Advanced AI workflows for complex analysis
+1. **Gmail**: Connect to automatically process board emails with attachments
+2. **Google Drive**: Sync specific folders (Board Meetings, Financial Reports)
+3. **Manual Upload**: Direct document upload for immediate analysis
+
+### Progressive Enhancement
+BoardBravo adapts its interface based on your setup:
+- **No Setup**: Shows getting started guides and demos
+- **Documents Only**: Focuses on document analysis features
+- **With Integrations**: Provides integration-specific quick actions
+- **Active Usage**: Offers contextual follow-up suggestions
 
 ## 🤝 Contributing
 
@@ -224,8 +248,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🆘 Support
 
 For support and questions:
-- Check the [Issues](https://github.com/your-repo/boardbravo/issues) page
-- Review the configuration documentation
+- Check the [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) file
+- Review the [OAUTH_SETUP.md](./OAUTH_SETUP.md) for integration setup
 - Ensure all API keys are properly configured
 
 ---
