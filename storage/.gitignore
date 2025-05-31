@@ -1,0 +1,15 @@
+# Ignore all board data and uploaded files
+boards/*/
+*.json
+*.pdf
+*.xlsx
+*.xls
+*.csv
+*.pptx
+*.ppt
+*.docx
+*.doc
+
+# Keep the directory structure but ignore content
+!.gitignore
+!README.md 

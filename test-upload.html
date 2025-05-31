@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Test</title>
+</head>
+<body>
+    <h1>BoardBravo Upload Test</h1>
+    
+    <form id="uploadForm">
+        <input type="file" id="fileInput" accept=".pdf,.xlsx,.xls,.csv,.pptx,.ppt">
+        <button type="submit">Upload Test</button>
+    </form>
+    
+    <div id="result"></div>
+    
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('fileInput');
+            const resultDiv = document.getElementById('result');
+            
+            if (!fileInput.files[0]) {
+                resultDiv.innerHTML = 'Please select a file';
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('boardId', 'board-demo');
+            
+            try {
+                resultDiv.innerHTML = 'Uploading...';
+                
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <h3>Upload Successful!</h3>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <h3>Upload Failed</h3>
+                        <p>Status: ${response.status}</p>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <h3>Error</h3>
+                    <p>${error.message}</p>
+                `;
+            }
+        });
+    </script>
+</body>
+</html> 

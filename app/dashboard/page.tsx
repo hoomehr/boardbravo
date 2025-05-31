@@ -3,131 +3,74 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { 
-  Upload, 
-  MessageSquare, 
-  FileText, 
-  Folder, 
-  Search, 
-  Plus,
   Zap,
   ArrowLeft,
-  Send,
-  Paperclip,
-  Bot,
-  User,
   Settings,
-  CheckCircle,
-  AlertCircle,
-  Loader2,
-  Mail,
-  Database,
-  Server,
   Users,
   Building2,
-  Plug,
-  Trash2,
-  MessageCircle,
-  FolderOpen,
-  XCircle,
   X,
+  BarChart3,
+  AlertCircle,
+  CheckCircle,
   TrendingUp,
-  TrendingDown,
-  BarChart3
+  Plus,
+  Mail,
+  Database
 } from 'lucide-react'
 import Link from 'next/link'
 import { useDropzone } from 'react-dropzone'
-import ChartRenderer from '@/components/charts/ChartRenderer'
-import SummaryCard from '@/components/charts/SummaryCard'
 import Navbar from '@/components/layout/Navbar'
-import ReactMarkdown from 'react-markdown'
 import { format, formatDistanceToNow } from 'date-fns'
 
-interface ChatSession {
-  id: string
-  title: string
-  messages: ChatMessage[]
-  createdAt: Date
-  updatedAt: Date
-}
+// Import our refactored components
+import ChatHistoryCard from '@/components/dashboard/ChatHistoryCard'
+import DocumentsCard from '@/components/dashboard/DocumentsCard'
+import IntegrationsCard from '@/components/dashboard/IntegrationsCard'
+import ChatInterfaceCard from '@/components/dashboard/ChatInterfaceCard'
+import BoardMembersCard from '@/components/dashboard/BoardMembersCard'
+import NoteBoardCard from '@/components/dashboard/NoteBoardCard'
 
-interface Document {
-  id: string
-  name: string
-  type: string
-  size: number
-  uploadedAt: Date
-  status: 'processing' | 'ready' | 'error'
-  extractedText?: string
-}
-
-interface ChartData {
-  type: 'bar' | 'line' | 'pie' | 'area'
-  title: string
-  data: any[]
-  xKey?: string
-  yKey?: string
-  description?: string
-}
-
-interface SummaryMetric {
-  title: string
-  value: string | number
-  change?: number
-  changeType?: 'positive' | 'negative' | 'neutral'
-  icon?: 'revenue' | 'users' | 'target' | 'calendar' | 'warning' | 'success'
-  description?: string
-}
-
-interface ChatMessage {
-  id: string
-  type: 'user' | 'assistant'
-  content: string
-  timestamp: Date
-  charts?: ChartData[]
-  summary?: {
-    title: string
-    metrics: SummaryMetric[]
-    insights: string[]
-  }
-}
-
-interface AIProviderStatus {
-  currentProvider: string
-  availableProviders: string[]
-  status: 'configured' | 'not_configured'
-}
-
-interface Integration {
-  id: string
-  name: string
-  icon: React.ReactNode
-  status: 'connected' | 'disconnected'
-  description: string
-  color: string
-}
-
-interface BoardMember {
-  id: string
-  name: string
-  email: string
-  role: string
-  addedAt: Date
-  status: 'active' | 'inactive'
-}
+// Import shared types
+import type {
+  ChatMessage,
+  ChatSession,
+  Document,
+  BoardWorkspace,
+  BoardMember,
+  SavedNote,
+  Integration,
+  AIProviderStatus,
+  AgentAction
+} from '@/types/dashboard'
 
 export default function DashboardPage() {
+  // Core state
   const [documents, setDocuments] = useState<Document[]>([])
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [currentMessage, setCurrentMessage] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
+  const [processingAction, setProcessingAction] = useState<string>('')
   const [isUploading, setIsUploading] = useState(false)
-  const [aiProviderStatus, setAIProviderStatus] = useState<AIProviderStatus | null>(null)
-  const [showProviderStatus, setShowProviderStatus] = useState(false)
-  const [showIntegrations, setShowIntegrations] = useState(false)
   const [isClient, setIsClient] = useState(false)
-  const [hasShownWelcome, setHasShownWelcome] = useState(false)
+  const [showManualAction, setShowManualAction] = useState(false)
+  const [manualActionQuery, setManualActionQuery] = useState('')
+  const [savedNotes, setSavedNotes] = useState<SavedNote[]>([])
+  
+  // Board workspace management
+  const [currentBoard, setCurrentBoard] = useState<BoardWorkspace | null>(null)
+  const [showBoardSettings, setShowBoardSettings] = useState(false)
+  const [boardName, setBoardName] = useState('')
+  const [isAdmin, setIsAdmin] = useState(true)
+  const [currentUser] = useState({ 
+    id: 'user-1', 
+    name: 'John Smith', 
+    email: 'john@company.com', 
+    role: 'Admin' 
+  })
+  
+  // Board members and integrations
   const [boardMembers, setBoardMembers] = useState<BoardMember[]>([])
   const [showAddMember, setShowAddMember] = useState(false)
   const [newMember, setNewMember] = useState({
@@ -136,587 +79,212 @@ export default function DashboardPage() {
     role: ''
   })
   
-  // Integration status (mock data for now)
   const [integrations, setIntegrations] = useState<Integration[]>([
     {
       id: 'gmail',
       name: 'Gmail',
-      icon: <Mail className="w-5 h-5" />,
+      icon: <Mail className="w-4 h-4" />,
       status: 'disconnected',
       description: 'Connect to Gmail for email document analysis',
-      color: 'from-red-500 to-orange-500'
+      color: 'red'
     },
     {
       id: 'google-drive',
       name: 'Google Drive',
-      icon: <Folder className="w-5 h-5" />,
+      icon: <Database className="w-4 h-4" />,
       status: 'disconnected',
       description: 'Access board documents from Google Drive',
-      color: 'from-blue-500 to-green-500'
+      color: 'blue'
     },
     {
       id: 'hubspot',
-      name: 'HubSpot CRM',
-      icon: <Building2 className="w-5 h-5" />,
+      name: 'HubSpot',
+      icon: <Users className="w-4 h-4" />,
       status: 'disconnected',
-      description: 'Coming soon - Sync CRM data and sales documents',
-      color: 'from-orange-500 to-amber-500'
+      description: 'Connect CRM data for customer insights',
+      color: 'orange'
     },
     {
       id: 'mcp-server',
       name: 'MCP Server',
-      icon: <Server className="w-5 h-5" />,
+      icon: <Building2 className="w-4 h-4" />,
       status: 'disconnected',
-      description: 'In development - Model Context Protocol servers',
-      color: 'from-purple-500 to-pink-500'
+      description: 'Connect to enterprise data sources',
+      color: 'purple'
     }
   ])
-  
-  // Ref for auto-scrolling chat
-  const chatContainerRef = useRef<HTMLDivElement>(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to bottom when new messages are added
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [chatMessages, isProcessing])
-
-  // Check AI provider status on component mount
+  // Initialize on mount
   useEffect(() => {
     setIsClient(true)
-    checkAIProviderStatus()
-    checkIntegrationCallbacks()
-    loadChatSessions()
+    loadOrCreateBoard()
   }, [])
 
-  // Save chat sessions to localStorage
-  useEffect(() => {
-    if (chatSessions.length > 0) {
-      localStorage.setItem('boardbravo-chat-sessions', JSON.stringify(chatSessions))
-    }
-  }, [chatSessions])
-
-  // Save current session when messages change
-  useEffect(() => {
-    if (currentSessionId && chatMessages.length > 1) {
-      saveCurrentSession()
-    }
-  }, [chatMessages, currentSessionId])
-
-  // Show welcome message only after documents are uploaded or integrations are connected
-  useEffect(() => {
-    const hasDocuments = documents.filter(doc => doc.status === 'ready').length > 0
-    const hasConnectedIntegrations = integrations.filter(int => int.status === 'connected').length > 0
-    
-    if (!hasShownWelcome && (hasDocuments || hasConnectedIntegrations) && chatMessages.length === 0) {
-      const welcomeMessage: ChatMessage = {
-        id: 'welcome-1',
-        type: 'assistant',
-        content: "Hi! I'm your BoardBravo AI assistant. 📊\n\nI can see you've " + 
-                (hasDocuments ? "uploaded documents" : "") + 
-                (hasDocuments && hasConnectedIntegrations ? " and " : "") +
-                (hasConnectedIntegrations ? "connected integrations" : "") + 
-                ". Ready to start analyzing!",
-        timestamp: new Date()
-      }
-      setChatMessages([welcomeMessage])
-      setHasShownWelcome(true)
-    }
-  }, [documents, integrations, hasShownWelcome, chatMessages.length])
-
-  const checkAIProviderStatus = async () => {
+  // Load or create board workspace
+  const loadOrCreateBoard = async () => {
     try {
-      const response = await fetch('/api/chat')
-      const data = await response.json()
-      setAIProviderStatus(data)
-    } catch (error) {
-      console.error('Failed to check AI provider status:', error)
-    }
-  }
-
-  const checkIntegrationCallbacks = () => {
-    // Check for OAuth callback results in URL params
-    const urlParams = new URLSearchParams(window.location.search)
-    const integration = urlParams.get('integration')
-    const status = urlParams.get('status')
-    const message = urlParams.get('message')
-
-    if (integration && status) {
-      if (status === 'success') {
-        // Update integration status to connected
-        setIntegrations(prev => 
-          prev.map(int => 
-            int.id === integration 
-              ? { ...int, status: 'connected' }
-              : int
-          )
-        )
-        
-        // Show success message
-        alert(`${integration} connected successfully!`)
-      } else if (status === 'error') {
-        alert(`Failed to connect ${integration}: ${message || 'Unknown error'}`)
-      }
-
-      // Clean up URL params
-      window.history.replaceState({}, document.title, window.location.pathname)
-    }
-  }
-
-  const handleIntegrationConnect = async (integrationId: string) => {
-    console.log(`Connecting to ${integrationId}...`)
-    
-    try {
-      switch (integrationId) {
-        case 'gmail':
-          // Get Gmail OAuth URL
-          const gmailResponse = await fetch('/api/integrations/gmail?action=connect')
-          const gmailData = await gmailResponse.json()
-          if (gmailData.authUrl) {
-            window.open(gmailData.authUrl, '_blank', 'width=500,height=600')
-          }
-          break
-          
-        case 'google-drive':
-          // Get Google Drive OAuth URL
-          const driveResponse = await fetch('/api/integrations/google-drive?action=connect')
-          const driveData = await driveResponse.json()
-          if (driveData.authUrl) {
-            window.open(driveData.authUrl, '_blank', 'width=500,height=600')
-          }
-          break
-          
-        case 'hubspot':
-          // Simulate HubSpot OAuth flow
-          alert('HubSpot integration is coming soon! This feature is currently in development and will be available in a future update.')
-          break
-          
-        case 'mcp-server':
-          // Show MCP server configuration dialog
-          alert('MCP Server integration is in development. This feature will allow connecting to Model Context Protocol servers for advanced AI workflows.')
-          break
-      }
-    } catch (error) {
-      console.error(`Failed to connect to ${integrationId}:`, error)
-      alert(`Failed to connect to ${integrationId}. Please try again.`)
-    }
-  }
-
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    setIsUploading(true)
-
-    for (const file of acceptedFiles) {
-      const newDoc: Document = {
-        id: Math.random().toString(36).substr(2, 9),
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        uploadedAt: new Date(),
-        status: 'processing'
-      }
+      const boardId = 'board-demo'
+      const response = await fetch(`/api/boards/${boardId}`)
       
-      setDocuments(prev => [...prev, newDoc])
-
-      try {
-        // Upload file to API
-        const formData = new FormData()
-        formData.append('file', file)
-
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData
-        })
-
-        if (response.ok) {
-          const uploadResult = await response.json()
-          setDocuments(prev => 
-            prev.map(doc => 
-              doc.id === newDoc.id 
-                ? { ...doc, status: 'ready', extractedText: uploadResult.extractedText }
-                : doc
-            )
-          )
-        } else {
-          throw new Error('Upload failed')
-        }
-      } catch (error) {
-        console.error('Upload error:', error)
-        setDocuments(prev => 
-          prev.map(doc => 
-            doc.id === newDoc.id 
-              ? { ...doc, status: 'error' }
-              : doc
-          )
-        )
-      }
-    }
-
-    setIsUploading(false)
-  }, [])
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'application/pdf': ['.pdf'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-      'application/vnd.ms-excel': ['.xls'],
-      'text/csv': ['.csv'],
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
-      'application/vnd.ms-powerpoint': ['.ppt']
-    },
-    multiple: true
-  })
-
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!currentMessage.trim() || isProcessing) return
-
-    // Create a new session if none exists
-    if (!currentSessionId) {
-      createNewChatSession()
-    }
-
-    const userMessage: ChatMessage = {
-      id: Math.random().toString(36).substr(2, 9),
-      type: 'user',
-      content: currentMessage,
-      timestamp: new Date()
-    }
-
-    setChatMessages(prev => [...prev, userMessage])
-    const messageToSend = currentMessage
-    setCurrentMessage('')
-    setIsProcessing(true)
-
-    try {
-      const readyDocuments = documents.filter(doc => doc.status === 'ready')
-      
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          message: messageToSend,
-          documents: readyDocuments
-        })
-      })
-
-      const data = await response.json()
-
       if (response.ok) {
-        const aiResponse: ChatMessage = {
-          id: Math.random().toString(36).substr(2, 9),
-          type: 'assistant',
-          content: data.response,
-          timestamp: new Date(),
-          charts: data.charts,
-          summary: data.summary
+        const boardData = await response.json()
+        if (boardData.success) {
+          setCurrentBoard(boardData.board)
+          setBoardMembers(boardData.members || [])
+          setBoardName(boardData.board?.name || 'Board Demo Workspace')
+          
+          // Load documents
+          if (boardData.documents && boardData.documents.length > 0) {
+            const formattedDocs = boardData.documents.map((doc: any) => ({
+              id: doc.id,
+              name: doc.originalName || doc.filename,
+              type: doc.type,
+              size: doc.size,
+              uploadedAt: new Date(doc.uploadedAt),
+              status: doc.status || 'ready',
+              extractedText: doc.extractedText
+            }))
+            setDocuments(formattedDocs)
+          }
+          
+          // Load chat sessions
+          if (boardData.chatSessions && boardData.chatSessions.length > 0) {
+            const formattedSessions = boardData.chatSessions.map((session: any) => ({
+              ...session,
+              createdAt: new Date(session.createdAt),
+              updatedAt: new Date(session.updatedAt),
+              messages: session.messages.map((msg: any) => ({
+                ...msg,
+                timestamp: new Date(msg.timestamp)
+              }))
+            }))
+            setChatSessions(formattedSessions)
+            
+            console.log('Chat sessions loaded:', {
+              sessionsCount: formattedSessions.length,
+              sessions: formattedSessions.map((s: ChatSession) => ({
+                id: s.id,
+                title: s.title,
+                messageCount: s.messages.length,
+                lastUpdated: s.updatedAt
+              }))
+            })
+          } else {
+            console.log('No existing chat sessions found, will create default when needed')
+          }
+          
+          // Load saved notes from dedicated endpoint
+          try {
+            const notesResponse = await fetch(`/api/boards/notes?boardId=${boardData.board?.id || 'board-demo'}`)
+            if (notesResponse.ok) {
+              const notesData = await notesResponse.json()
+              if (notesData.success && notesData.notes && notesData.notes.length > 0) {
+                const formattedNotes = notesData.notes.map((note: any) => ({
+                  ...note,
+                  createdAt: new Date(note.createdAt),
+                  updatedAt: new Date(note.updatedAt)
+                }))
+                setSavedNotes(formattedNotes)
+                console.log('Saved notes loaded from dedicated endpoint:', formattedNotes.length)
+              } else {
+                console.log('No notes found in dedicated endpoint')
+              }
+            }
+          } catch (notesError) {
+            console.error('Failed to load notes from dedicated endpoint:', notesError)
+            // Fallback to loading from main board data
+            if (boardData.savedNotes && boardData.savedNotes.length > 0) {
+              const formattedNotes = boardData.savedNotes.map((note: any) => ({
+                ...note,
+                createdAt: new Date(note.createdAt),
+                updatedAt: new Date(note.updatedAt)
+              }))
+              setSavedNotes(formattedNotes)
+              console.log('Saved notes loaded from fallback:', formattedNotes.length)
+            }
+          }
+          
+          console.log('Board loaded successfully:', {
+            boardId: boardData.board?.id,
+            documentsCount: boardData.documents?.length || 0,
+            membersCount: boardData.members?.length || 0,
+            chatSessionsCount: boardData.chatSessions?.length || 0,
+            savedNotesCount: boardData.savedNotes?.length || 0
+          })
         }
-        setChatMessages(prev => [...prev, aiResponse])
       } else {
-        throw new Error(data.error || 'Failed to get AI response')
+        console.log('Board not found, creating new board...')
+        createNewBoard()
       }
     } catch (error) {
-      console.error('Chat error:', error)
-      const errorResponse: ChatMessage = {
-        id: Math.random().toString(36).substr(2, 9),
-        type: 'assistant',
-        content: `I apologize, but I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please check your AI provider configuration and try again.`,
-        timestamp: new Date()
-      }
-      setChatMessages(prev => [...prev, errorResponse])
-    } finally {
-      setIsProcessing(false)
+      console.error('Failed to load board:', error)
+      createNewBoard()
     }
   }
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
-
-  const getFileIcon = (filename: string) => {
-    const ext = filename.split('.').pop()?.toLowerCase()
-    switch (ext) {
-      case 'pdf':
-        return '📄'
-      case 'xlsx':
-      case 'xls':
-      case 'csv':
-        return '📊'
-      case 'pptx':
-      case 'ppt':
-        return '📋'
-      default:
-        return '📁'
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'ready':
-        return 'bg-green-500'
-      case 'processing':
-        return 'bg-yellow-500'
-      case 'error':
-        return 'bg-red-500'
-      default:
-        return 'bg-gray-500'
-    }
-  }
-
-  const getProviderDisplayName = (provider: string) => {
-    switch (provider) {
-      case 'gemini':
-        return 'Google Gemini'
-      case 'openai':
-        return 'OpenAI GPT'
-      case 'anthropic':
-        return 'Anthropic Claude'
-      default:
-        return provider
-    }
-  }
-
-  const getSampleQuestions = () => {
-    // Dynamic questions based on current context
-    const hasDocuments = documents.filter(doc => doc.status === 'ready').length > 0
-    const hasActiveChat = chatMessages.length > 2 // More than just the initial greeting
-    const connectedIntegrations = integrations.filter(i => i.status === 'connected')
-    
-    // Base questions that change based on context
-    let contextualQuestions: { text: string; source: string }[] = []
-    
-    if (!hasDocuments && !hasActiveChat) {
-      // First-time user experience
-      contextualQuestions = [
+  // Create new board workspace
+  const createNewBoard = async () => {
+    const newBoard: BoardWorkspace = {
+      id: 'board-demo',
+      name: 'Board Demo Workspace',
+      createdBy: currentUser.id,
+      createdAt: new Date(),
+      lastActivity: new Date(),
+      members: [
         {
-          text: "Show me a sample financial dashboard",
-          source: 'Getting Started'
-        },
-        {
-          text: "What can BoardBravo analyze for me?",
-          source: 'Getting Started'
-        },
-        {
-          text: "Create a demo revenue chart",
-          source: 'Demo'
-        },
-        {
-          text: "Explain board document analysis",
-          source: 'Help'
+          id: currentUser.id,
+          name: currentUser.name,
+          email: currentUser.email,
+          role: 'Admin',
+          addedAt: new Date(),
+          status: 'active'
         }
-      ]
-    } else if (hasDocuments && !hasActiveChat) {
-      // User has uploaded documents but hasn't started chatting
-      contextualQuestions = [
-        {
-          text: "Summarize all uploaded documents",
-          source: 'Document Analysis'
-        },
-        {
-          text: "Create a revenue chart from the financial data",
-          source: 'Financial Analysis'
-        },
-        {
-          text: "What are the key insights from these documents?",
-          source: 'Insights'
-        },
-        {
-          text: "Identify risks and opportunities",
-          source: 'Risk Assessment'
-        }
-      ]
-    } else if (hasActiveChat) {
-      // User is actively chatting - provide follow-up questions
-      const lastUserMessage = chatMessages.filter(m => m.type === 'user').pop()
-      
-      if (lastUserMessage?.content.toLowerCase().includes('revenue') || 
-          lastUserMessage?.content.toLowerCase().includes('financial')) {
-        contextualQuestions = [
-          {
-            text: "Compare this quarter vs last quarter",
-            source: 'Follow-up'
-          },
-          {
-            text: "Show growth trends over time",
-            source: 'Trend Analysis'
-          },
-          {
-            text: "What's driving the revenue changes?",
-            source: 'Deep Dive'
-          },
-          {
-            text: "Create a forecast for next quarter",
-            source: 'Forecasting'
-          }
-        ]
-      } else if (lastUserMessage?.content.toLowerCase().includes('risk')) {
-        contextualQuestions = [
-          {
-            text: "How can we mitigate these risks?",
-            source: 'Risk Management'
-          },
-          {
-            text: "What's the financial impact of these risks?",
-            source: 'Impact Analysis'
-          },
-          {
-            text: "Show risk trends over time",
-            source: 'Risk Trends'
-          },
-          {
-            text: "Compare our risks to industry benchmarks",
-            source: 'Benchmarking'
-          }
-        ]
-      } else {
-        // General follow-up questions
-        contextualQuestions = [
-          {
-            text: "Dive deeper into this analysis",
-            source: 'Deep Dive'
-          },
-          {
-            text: "Show me related metrics",
-            source: 'Related Analysis'
-          },
-          {
-            text: "What are the next steps?",
-            source: 'Action Items'
-          },
-          {
-            text: "Create a board presentation summary",
-            source: 'Presentation'
-          }
-        ]
+      ],
+      settings: {
+        allowMemberInvites: true,
+        requireApproval: false
       }
     }
-
-    // Add integration-specific questions if connected
-    const integrationQuestions: { text: string; source: string }[] = []
     
-    if (connectedIntegrations.find(i => i.id === 'gmail')) {
-      integrationQuestions.push({
-        text: "Analyze recent board emails",
-        source: 'Gmail'
-      })
-    }
+    setCurrentBoard(newBoard)
+    setBoardMembers(newBoard.members)
+    setBoardName(newBoard.name)
     
-    if (connectedIntegrations.find(i => i.id === 'google-drive')) {
-      integrationQuestions.push({
-        text: "Sync latest Drive documents",
-        source: 'Google Drive'
-      })
-    }
-    
-    if (connectedIntegrations.find(i => i.id === 'hubspot')) {
-      integrationQuestions.push({
-        text: "Update sales pipeline metrics",
-        source: 'HubSpot CRM'
-      })
-    }
-
-    // Combine contextual and integration questions, limit to 4
-    return [...contextualQuestions, ...integrationQuestions].slice(0, 4)
-  }
-
-  const handleSampleQuestion = async (question: string) => {
-    // Create a new session if none exists
-    if (!currentSessionId) {
-      createNewChatSession()
-    }
-
-    // Add user message first
-    const userMessage: ChatMessage = {
-      id: Math.random().toString(36).substr(2, 9),
-      type: 'user',
-      content: question,
-      timestamp: new Date()
-    }
-    setChatMessages(prev => [...prev, userMessage])
-    setIsProcessing(true)
-
     try {
-      const readyDocuments = documents.filter(doc => doc.status === 'ready')
-      
-      const response = await fetch('/api/chat', {
+      await saveBoard(newBoard)
+      console.log('New board created and saved:', newBoard.id)
+    } catch (error) {
+      console.error('Failed to save new board:', error)
+    }
+  }
+
+  // Save board data
+  const saveBoard = async (board: BoardWorkspace) => {
+    try {
+      const response = await fetch('/api/boards', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: question,
-          documents: readyDocuments,
-          isQuickAction: true // Flag to indicate this is from a quick action button
+          board,
+          members: boardMembers,
+          documents,
+          chatSessions
         })
       })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        // For chart-focused queries, show minimal or no text response
-        const isChartOnlyResponse = !data.response || data.response.trim() === ""
-        
-        const aiResponse: ChatMessage = {
-          id: Math.random().toString(36).substr(2, 9),
-          type: 'assistant',
-          content: isChartOnlyResponse 
-            ? (readyDocuments.length > 0 
-                ? "📊 Analysis complete - see charts and metrics below" 
-                : "📋 Upload documents to generate data-driven insights")
-            : data.response,
-          timestamp: new Date(),
-          charts: data.charts,
-          summary: data.summary
-        }
-        setChatMessages(prev => [...prev, aiResponse])
-      } else {
-        throw new Error(data.error || 'Failed to get AI response')
+      
+      const result = await response.json()
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to save board')
       }
+      
+      console.log('Board saved successfully')
     } catch (error) {
-      console.error('Sample question error:', error)
-      const errorResponse: ChatMessage = {
-        id: Math.random().toString(36).substr(2, 9),
-        type: 'assistant',
-        content: `I apologize, but I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please check your AI provider configuration and try again.`,
-        timestamp: new Date()
-      }
-      setChatMessages(prev => [...prev, errorResponse])
-    } finally {
-      setIsProcessing(false)
+      console.error('Failed to save board:', error)
     }
   }
 
-  const loadChatSessions = () => {
-    try {
-      const saved = localStorage.getItem('boardbravo-chat-sessions')
-      if (saved) {
-        const sessions = JSON.parse(saved).map((session: any) => ({
-          ...session,
-          createdAt: new Date(session.createdAt),
-          updatedAt: new Date(session.updatedAt),
-          messages: session.messages.map((msg: any) => ({
-            ...msg,
-            timestamp: new Date(msg.timestamp)
-          }))
-        }))
-        setChatSessions(sessions)
-      }
-    } catch (error) {
-      console.error('Failed to load chat sessions:', error)
-    }
-  }
-
-  const createNewChatSession = () => {
+  // Chat functionality
+  const createNewChatSession = useCallback(() => {
     const newSession: ChatSession = {
       id: Math.random().toString(36).substr(2, 9),
       title: `Chat ${chatSessions.length + 1}`,
@@ -735,630 +303,726 @@ export default function DashboardPage() {
     setChatSessions(prev => [newSession, ...prev])
     setCurrentSessionId(newSession.id)
     setChatMessages(newSession.messages)
-  }
+    
+    console.log('New chat session created:', {
+      sessionId: newSession.id,
+      totalSessions: chatSessions.length + 1
+    })
+    
+    // Save to backend immediately
+    saveChatSessionsToBackend([newSession, ...chatSessions])
+  }, [chatSessions.length, chatSessions])
 
-  const saveCurrentSession = () => {
-    if (!currentSessionId) return
-
-    setChatSessions(prev => prev.map(session => {
-      if (session.id === currentSessionId) {
-        const firstUserMessage = chatMessages.find(m => m.type === 'user')
-        const title = firstUserMessage 
-          ? firstUserMessage.content.substring(0, 50) + (firstUserMessage.content.length > 50 ? '...' : '')
-          : session.title
-
-        return {
-          ...session,
-          title,
-          messages: chatMessages,
-          updatedAt: new Date()
-        }
-      }
-      return session
-    }))
-  }
-
-  const switchToSession = (sessionId: string) => {
-    if (currentSessionId) {
-      saveCurrentSession()
-    }
-
+  const switchToSession = useCallback((sessionId: string) => {
     const session = chatSessions.find(s => s.id === sessionId)
     if (session) {
       setCurrentSessionId(sessionId)
       setChatMessages(session.messages)
     }
-  }
+  }, [chatSessions])
 
-  const deleteSession = (sessionId: string) => {
-    setChatSessions(prev => prev.filter(s => s.id !== sessionId))
+  const deleteSession = useCallback((sessionId: string) => {
+    const updatedSessions = chatSessions.filter(s => s.id !== sessionId)
+    setChatSessions(updatedSessions)
     
     if (currentSessionId === sessionId) {
-      const remainingSessions = chatSessions.filter(s => s.id !== sessionId)
-      if (remainingSessions.length > 0) {
-        switchToSession(remainingSessions[0].id)
+      if (updatedSessions.length > 0) {
+        switchToSession(updatedSessions[0].id)
       } else {
         createNewChatSession()
+        return // Don't save yet, let createNewChatSession handle it
+      }
+    }
+    
+    // Save updated sessions to backend
+    saveChatSessionsToBackend(updatedSessions)
+  }, [chatSessions, currentSessionId, switchToSession, createNewChatSession])
+
+  const updateSessionTitle = useCallback((sessionId: string, newTitle: string) => {
+    const updatedSessions = chatSessions.map(session => 
+      session.id === sessionId 
+        ? { ...session, title: newTitle, updatedAt: new Date() }
+        : session
+    )
+    setChatSessions(updatedSessions)
+    
+    // Save updated sessions to backend
+    saveChatSessionsToBackend(updatedSessions)
+    
+    console.log('Session title updated:', { sessionId, newTitle })
+  }, [chatSessions])
+
+  // Save chat sessions to backend
+  const saveChatSessionsToBackend = async (sessions: ChatSession[]) => {
+    try {
+      const response = await fetch('/api/boards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          board: currentBoard,
+          members: boardMembers,
+          documents,
+          chatSessions: sessions
+        })
+      })
+      
+      if (!response.ok) {
+        const result = await response.json()
+        throw new Error(result.error || 'Failed to save chat sessions')
+      }
+      
+      console.log('Chat sessions saved to backend:', sessions.length)
+    } catch (error) {
+      console.error('Failed to save chat sessions:', error)
+    }
+  }
+
+  // Handle chat input
+  const handleChatInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setCurrentMessage(e.target.value)
+  }, [])
+
+  const sendMemberMessage = useCallback((e: React.FormEvent) => {
+    e.preventDefault()
+    if (!currentMessage.trim()) return
+
+    if (!currentSessionId) {
+      createNewChatSession()
+    }
+
+    const memberMessage: ChatMessage = {
+      id: Math.random().toString(36).substr(2, 9),
+      type: 'user',
+      content: currentMessage,
+      timestamp: new Date()
+    }
+
+    setChatMessages(prev => [...prev, memberMessage])
+    setCurrentMessage('')
+    
+    // Update session with new message
+    const updatedSessions = chatSessions.map(session => 
+      session.id === currentSessionId 
+        ? { ...session, messages: [...session.messages, memberMessage], updatedAt: new Date() }
+        : session
+    )
+    setChatSessions(updatedSessions)
+    
+    // Save to backend
+    saveChatSessionsToBackend(updatedSessions)
+  }, [currentMessage, currentSessionId, createNewChatSession, chatSessions])
+
+  // File upload functionality
+  const handleFileUpload = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.pdf,.xlsx,.xls,.csv,.pptx,.ppt'
+    input.multiple = true
+    
+    input.addEventListener('change', (e) => {
+      const files = (e.target as HTMLInputElement).files
+      if (files && files.length > 0) {
+        onDrop(Array.from(files))
+      }
+    })
+    
+    input.click()
+  }
+
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (acceptedFiles.length === 0) return
+    
+    setIsUploading(true)
+
+    for (const file of acceptedFiles) {
+      const newDoc: Document = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        uploadedAt: new Date(),
+        status: 'processing'
+      }
+      
+      setDocuments(prev => [...prev, newDoc])
+
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('boardId', currentBoard?.id || 'board-demo')
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (response.ok) {
+          const uploadResult = await response.json()
+          const documentData = uploadResult.document || uploadResult
+          
+          setDocuments(prev => 
+            prev.map(doc => 
+              doc.id === newDoc.id 
+                ? { 
+                    ...doc, 
+                    status: 'ready', 
+                    extractedText: documentData.extractedText,
+                    id: documentData.id
+                  }
+                : doc
+            )
+          )
+        } else {
+          throw new Error('Upload failed')
+        }
+      } catch (error) {
+        setDocuments(prev => 
+          prev.map(doc => 
+            doc.id === newDoc.id 
+              ? { ...doc, status: 'error' }
+              : doc
+          )
+        )
+        alert(`Failed to upload ${file.name}`)
+      }
+    }
+
+    setIsUploading(false)
+  }, [currentBoard])
+
+  const removeDocument = useCallback((documentId: string) => {
+    setDocuments(prev => prev.filter(doc => doc.id !== documentId))
+  }, [])
+
+  // Integration handlers
+  const handleIntegrationConnect = async (integrationId: string) => {
+    console.log(`Connecting to ${integrationId}...`)
+    alert(`${integrationId} integration coming soon!`)
+  }
+
+  // Board Members handlers
+  const toggleAddMember = () => {
+    setShowAddMember(!showAddMember)
+  }
+
+  const updateNewMember = (field: keyof typeof newMember, value: string) => {
+    setNewMember(prev => ({ ...prev, [field]: value }))
+  }
+
+  const addMember = async () => {
+    if (newMember.name && newMember.email && newMember.role) {
+      const member: BoardMember = {
+      id: Math.random().toString(36).substr(2, 9),
+        name: newMember.name,
+        email: newMember.email,
+        role: newMember.role,
+        addedAt: new Date(),
+        status: 'active'
+      }
+      
+      const updatedMembers = [...boardMembers, member]
+      setBoardMembers(updatedMembers)
+      setNewMember({ name: '', email: '', role: '' })
+      setShowAddMember(false)
+      
+      // Save to backend
+      if (currentBoard) {
+        await saveBoard({ ...currentBoard, members: updatedMembers })
       }
     }
   }
 
-  const removeDocument = (documentId: string) => {
-    setDocuments(prev => prev.filter(doc => doc.id !== documentId))
-    deleteSession(documentId)
-  }
-
-  // Board action handlers
-  const handleSendSummary = async () => {
-    setIsProcessing(true)
-    try {
-      // Simulate sending summary to stakeholders
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      alert('Executive summary sent to all board members successfully!')
-    } catch (error) {
-      alert('Failed to send summary. Please try again.')
-    } finally {
-      setIsProcessing(false)
+  const removeMember = async (memberId: string) => {
+    if (memberId === currentUser.id) return // Can't remove yourself
+    
+    const updatedMembers = boardMembers.filter(m => m.id !== memberId)
+    setBoardMembers(updatedMembers)
+    
+    // Save to backend
+    if (currentBoard) {
+      await saveBoard({ ...currentBoard, members: updatedMembers })
     }
   }
 
-  const handleRequestData = async () => {
-    setIsProcessing(true)
+  // Notes handlers
+  const saveNote = async (note: Omit<SavedNote, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const newNote: SavedNote = {
+      ...note,
+        id: Math.random().toString(36).substr(2, 9),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+    
+    const updatedNotes = [newNote, ...savedNotes]
+    setSavedNotes(updatedNotes)
+    
+    // Save to backend
+    await saveNotesToBackend(updatedNotes)
+  }
+
+  const updateNote = async (noteId: string, updates: Partial<SavedNote>) => {
+    const updatedNotes = savedNotes.map(note => 
+      note.id === noteId 
+        ? { ...note, ...updates, updatedAt: new Date() }
+        : note
+    )
+    setSavedNotes(updatedNotes)
+    
+    // Save to backend
+    await saveNotesToBackend(updatedNotes)
+  }
+
+  const deleteNote = async (noteId: string) => {
+    const updatedNotes = savedNotes.filter(note => note.id !== noteId)
+    setSavedNotes(updatedNotes)
+    
+    // Save to backend
+    await saveNotesToBackend(updatedNotes)
+  }
+
+  const togglePinNote = async (noteId: string) => {
+    const updatedNotes = savedNotes.map(note => 
+      note.id === noteId 
+        ? { ...note, isPinned: !note.isPinned, updatedAt: new Date() }
+        : note
+    )
+    setSavedNotes(updatedNotes)
+    
+    // Save to backend
+    await saveNotesToBackend(updatedNotes)
+  }
+
+  // Save notes to backend
+  const saveNotesToBackend = async (notes: SavedNote[]) => {
     try {
-      // Simulate data request
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      alert('Data request sent. You will receive the latest reports within 15 minutes.')
+      const response = await fetch('/api/boards/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          boardId: currentBoard?.id || 'board-demo',
+          notes: notes
+        })
+      })
+      
+      if (!response.ok) {
+        const result = await response.json()
+        throw new Error(result.error || 'Failed to save notes')
+      }
+      
+      console.log('Notes saved to backend:', notes.length)
     } catch (error) {
-      alert('Failed to request data. Please try again.')
-    } finally {
-      setIsProcessing(false)
+      console.error('Failed to save notes:', error)
+      // Fallback to main board data save
+      try {
+        const fallbackResponse = await fetch('/api/boards', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            board: currentBoard,
+            members: boardMembers,
+            documents,
+            chatSessions,
+            savedNotes: notes
+          })
+        })
+        if (fallbackResponse.ok) {
+          console.log('Notes saved via fallback method')
+        }
+      } catch (fallbackError) {
+        console.error('Fallback save also failed:', fallbackError)
+      }
     }
   }
 
-  const handleGenerateScorecard = async () => {
-    setIsProcessing(true)
-    try {
-      // Simulate scorecard generation
-      await new Promise(resolve => setTimeout(resolve, 2500))
-      alert('Governance scorecard generated and saved to your dashboard.')
-    } catch (error) {
-      alert('Failed to generate scorecard. Please try again.')
-    } finally {
-      setIsProcessing(false)
-    }
+  // Helper function to save agent results as notes
+  const saveAgentResultAsNote = async (actionTitle: string, content: string, category: SavedNote['category']) => {
+    await saveNote({
+      title: `${actionTitle} - ${format(new Date(), 'MMM dd, yyyy')}`,
+      content: content,
+      category: category,
+      source: `Agent: ${actionTitle}`,
+      isPinned: false,
+      tags: ['agent-generated']
+    })
   }
 
-  const handleRiskAlert = async () => {
-    setIsProcessing(true)
-    try {
-      // Simulate risk analysis
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      alert('Risk analysis complete. 2 medium-priority items require board attention.')
-    } catch (error) {
-      alert('Failed to analyze risks. Please try again.')
-    } finally {
-      setIsProcessing(false)
+  // Agent Actions
+  const handleAgentAction = async (actionTitle: string, actionDescription: string) => {
+    let targetSessionId = currentSessionId
+    
+    if (!targetSessionId) {
+      const newSession: ChatSession = {
+        id: Math.random().toString(36).substr(2, 9),
+        title: `Agent: ${actionTitle}`,
+        messages: [
+          {
+            id: '1',
+            type: 'assistant',
+            content: "Hi! I'm your BoardBravo AI assistant. 📊\n\nAttach documents and start analyzing, or connect your data sources to get started!",
+            timestamp: new Date()
+          }
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+      
+      setChatSessions(prev => [newSession, ...prev])
+      setCurrentSessionId(newSession.id)
+      setChatMessages(newSession.messages)
+      targetSessionId = newSession.id
+      
+      // Small delay to ensure state updates
+      await new Promise(resolve => setTimeout(resolve, 100))
     }
-  }
 
-  const handleAddBoardMember = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newMember.email.trim()) return
-
-    const boardMember: BoardMember = {
+    const actionMessage: ChatMessage = {
       id: Math.random().toString(36).substr(2, 9),
-      name: newMember.email.split('@')[0], // Use email prefix as default name
-      email: newMember.email.trim(),
-      role: 'Board Member', // Default role
-      addedAt: new Date(),
-      status: 'active'
+      type: 'user',
+      content: `🤖 Agent Action: ${actionTitle}`,
+      timestamp: new Date()
     }
+    setChatMessages(prev => [...prev, actionMessage])
 
-    setBoardMembers(prev => [...prev, boardMember])
-    setNewMember({ name: '', email: '', role: '' })
-    setShowAddMember(false)
-  }
+    setIsProcessing(true)
+    setProcessingAction(actionTitle)
 
-  const handleRemoveBoardMember = (memberId: string) => {
-    setBoardMembers(prev => prev.filter(member => member.id !== memberId))
-  }
+    try {
+      const readyDocuments = documents.filter(doc => doc.status === 'ready')
+      const connectedIntegrations = integrations.filter(i => i.status === 'connected')
+      
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: actionDescription,
+          documents: readyDocuments,
+          integrations: connectedIntegrations,
+          isAgentAction: true,
+          actionTitle: actionTitle,
+          boardId: currentBoard?.id
+        })
+      })
 
-  const getRoleColor = (role: string) => {
-    const roleColors: { [key: string]: string } = {
-      'CEO': 'bg-purple-100 text-purple-800',
-      'CFO': 'bg-green-100 text-green-800',
-      'Chairman': 'bg-blue-100 text-blue-800',
-      'Independent Director': 'bg-orange-100 text-orange-800',
-      'Board Member': 'bg-gray-100 text-gray-800',
-      'Advisor': 'bg-yellow-100 text-yellow-800'
+      const data = await response.json()
+
+      if (response.ok) {
+        const agentResponse: ChatMessage = {
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'assistant',
+          content: data.response,
+          timestamp: new Date(),
+          charts: data.charts,
+          summary: data.summary
+        }
+        setChatMessages(prev => [...prev, agentResponse])
+        
+        // Update session with both messages
+        const updatedSessions = chatSessions.map(session => 
+          session.id === targetSessionId 
+            ? { 
+                ...session, 
+                title: `Agent: ${actionTitle}`,
+                messages: [...session.messages, actionMessage, agentResponse],
+                updatedAt: new Date() 
+              }
+            : session
+        )
+        setChatSessions(updatedSessions)
+        
+        // Save to backend
+        saveChatSessionsToBackend(updatedSessions)
+        
+        // Auto-save agent result as note
+        const category = actionTitle.toLowerCase().includes('financial') ? 'financial' :
+                        actionTitle.toLowerCase().includes('risk') ? 'risk' :
+                        actionTitle.toLowerCase().includes('compliance') ? 'compliance' :
+                        actionTitle.toLowerCase().includes('performance') ? 'performance' :
+                        actionTitle.toLowerCase().includes('strategy') ? 'strategy' : 'general'
+        
+        await saveAgentResultAsNote(actionTitle, data.response, category)
+        
+        console.log('Agent action completed:', actionTitle)
+      } else {
+        throw new Error(data.error || 'Failed to execute agent action')
+      }
+    } catch (error) {
+      console.error('Agent action error:', error)
+      
+      const errorResponse: ChatMessage = {
+        id: Math.random().toString(36).substr(2, 9),
+        type: 'assistant',
+        content: `❌ Failed to execute ${actionTitle}. Please try again.`,
+        timestamp: new Date()
+      }
+      setChatMessages(prev => [...prev, errorResponse])
+      
+      // Update session with error message
+      const updatedSessions = chatSessions.map(session => 
+        session.id === targetSessionId 
+          ? { 
+          ...session,
+              messages: [...session.messages, actionMessage, errorResponse],
+      updatedAt: new Date()
     }
-    return roleColors[role] || 'bg-gray-100 text-gray-800'
+          : session
+      )
+      setChatSessions(updatedSessions)
+      saveChatSessionsToBackend(updatedSessions)
+    } finally {
+      setIsProcessing(false)
+      setProcessingAction('')
+    }
   }
 
-  return (
-    <div className="min-h-screen bg-white">
-      <Navbar currentPage="dashboard" />
-      <div className="px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 max-w-none">
-          {/* Left Panel: Chat History + Documents */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Chat History */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Chat History</h2>
-              
-              {chatSessions.length === 0 ? (
-                <div className="text-center py-8">
-                  <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500 text-sm">No chat sessions yet</p>
-                  <p className="text-gray-400 text-xs mt-1">Start a conversation to see your history</p>
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {chatSessions.map((session) => (
-                    <div
-                      key={session.id}
-                      onClick={() => switchToSession(session.id)}
-                      className={`p-3 rounded-lg cursor-pointer transition-colors duration-200 ${
-                        currentSessionId === session.id
-                          ? 'bg-blue-50 border border-blue-200'
-                          : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium truncate ${
-                            currentSessionId === session.id ? 'text-blue-900' : 'text-gray-900'
-                          }`}>
-                            {session.title}
-                          </p>
-                          <div className="flex items-center space-x-2 mt-1">
-                            <span className="text-xs text-gray-500">
-                              {session.messages.length} messages
-                            </span>
-                            <span className="text-xs text-gray-400">•</span>
-                            <span className="text-xs text-gray-500">
-                              {isClient ? formatDistanceToNow(session.updatedAt, { addSuffix: true }) : ''}
-                            </span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            deleteSession(session.id)
-                          }}
-                          className="ml-2 p-1 text-gray-400 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+  const getAgentActions = (): AgentAction[] => {
+    const hasDocuments = documents.filter(doc => doc.status === 'ready').length > 0
+    
+    return [
+      {
+        id: 'financial',
+        title: hasDocuments ? 'Q4 Financial Analysis' : 'Financial Analysis',
+        description: hasDocuments 
+          ? 'Comprehensive analysis of uploaded financial statements and projections'
+          : 'Analyze financial documents and data',
+        detailedDescription: 'Revenue trends, cost analysis, profitability metrics',
+        prompt: hasDocuments 
+          ? 'Analyze the uploaded financial documents in detail. Provide comprehensive analysis of revenue trends, cost structures, profitability metrics, cash flow patterns, and create forward-looking projections.'
+          : 'Provide general financial analysis guidance',
+        icon: BarChart3,
+        color: 'bg-green-50',
+        hoverColor: 'hover:bg-green-100',
+        borderColor: 'border-green-200',
+        iconColor: 'text-green-600',
+        tagColor: 'text-green-600',
+        tag: 'Financial'
+      },
+      {
+        id: 'risk',
+        title: 'Enterprise Risk Analysis',
+        description: 'Systematic risk identification and impact assessment',
+        detailedDescription: 'Operational, financial, strategic, and compliance risks',
+        prompt: 'Conduct a comprehensive risk assessment based on all uploaded documents. Identify operational, financial, strategic, and compliance risks.',
+        icon: AlertCircle,
+        color: 'bg-red-50',
+        hoverColor: 'hover:bg-red-100',
+        borderColor: 'border-red-200',
+        iconColor: 'text-red-600',
+        tagColor: 'text-red-600',
+        tag: 'Risk'
+      },
+      {
+        id: 'compliance',
+        title: 'Regulatory Compliance Audit',
+        description: 'Full compliance review against industry standards',
+        detailedDescription: 'SOX compliance, governance standards, regulatory adherence',
+        prompt: 'Perform a detailed compliance audit of all uploaded documents. Review against relevant regulatory frameworks.',
+        icon: CheckCircle,
+        color: 'bg-blue-50',
+        hoverColor: 'hover:bg-blue-100',
+        borderColor: 'border-blue-200',
+        iconColor: 'text-blue-600',
+        tagColor: 'text-blue-600',
+        tag: 'Compliance'
+      },
+      {
+        id: 'performance',
+        title: 'Executive Performance Dashboard',
+        description: 'Comprehensive KPI analysis and performance benchmarking',
+        detailedDescription: 'Operational efficiency, strategic goal progress, benchmark comparisons',
+        prompt: 'Create a comprehensive performance analysis from uploaded documents. Extract all KPIs, performance metrics, and operational data.',
+        icon: TrendingUp,
+        color: 'bg-purple-50',
+        hoverColor: 'hover:bg-purple-100',
+        borderColor: 'border-purple-200',
+        iconColor: 'text-purple-600',
+        tagColor: 'text-purple-600',
+        tag: 'Performance'
+      },
+      {
+        id: 'strategy',
+        title: 'Strategic Intelligence Report',
+        description: 'Market positioning analysis and strategic recommendations',
+        detailedDescription: 'Competitive landscape, market opportunities, strategic initiatives',
+        prompt: 'Generate a strategic intelligence report based on all available documents. Analyze market positioning, competitive advantages.',
+        icon: Zap,
+        color: 'bg-orange-50',
+        hoverColor: 'hover:bg-orange-100',
+        borderColor: 'border-orange-200',
+        iconColor: 'text-orange-600',
+        tagColor: 'text-orange-600',
+        tag: 'Strategy'
+      }
+    ]
+  }
 
-            {/* Documents & Upload */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Documents & Upload</h2>
-              
-              {/* Upload Area */}
-              <div
-                {...getRootProps()}
-                className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors duration-200 cursor-pointer mb-6 ${
-                  isDragActive 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-                }`}
-              >
-                <input {...getInputProps()} />
-                {isUploading ? (
-                  <Loader2 className="w-8 h-8 text-blue-500 mx-auto mb-3 animate-spin" />
-                ) : (
-                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-3" />
-                )}
-                <p className="text-gray-600 font-medium mb-1 text-sm">
-                  {isUploading ? 'Uploading files...' : 
-                   isDragActive ? 'Drop files here' : 'Upload Documents'}
-                </p>
-                <p className="text-gray-500 text-xs">
-                  {isUploading ? 'Please wait...' : 'PDF, Excel, PowerPoint, CSV supported'}
-                </p>
-              </div>
-
-              {/* Integration Quick Actions */}
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                <button
-                  onClick={() => handleIntegrationConnect('gmail')}
-                  className="bg-white border border-gray-200 text-gray-700 rounded-lg py-4 px-3 font-medium hover:border-gray-300 hover:bg-gray-50 transition-colors duration-200 flex flex-col items-center justify-center space-y-2"
-                >
-                  <Mail className="w-5 h-5 text-red-500" />
-                  <span className="text-sm">Gmail</span>
-                </button>
-                
-                <button
-                  onClick={() => handleIntegrationConnect('google-drive')}
-                  className="bg-white border border-gray-200 text-gray-700 rounded-lg py-4 px-3 font-medium hover:border-gray-300 hover:bg-gray-50 transition-colors duration-200 flex flex-col items-center justify-center space-y-2"
-                >
-                  <FolderOpen className="w-5 h-5 text-blue-500" />
-                  <span className="text-sm">Drive</span>
-                </button>
-                
-                <button
-                  onClick={() => handleIntegrationConnect('hubspot')}
-                  className="bg-white border border-gray-200 text-gray-700 rounded-lg py-4 px-3 font-medium hover:border-gray-300 hover:bg-gray-50 transition-colors duration-200 flex flex-col items-center justify-center space-y-2"
-                >
-                  <Users className="w-5 h-5 text-orange-500" />
-                  <span className="text-sm">HubSpot</span>
-                </button>
-                
-                <button
-                  onClick={() => handleIntegrationConnect('mcp')}
-                  className="bg-white border border-gray-200 text-gray-700 rounded-lg py-4 px-3 font-medium hover:border-gray-300 hover:bg-gray-50 transition-colors duration-200 flex flex-col items-center justify-center space-y-2"
-                >
-                  <Server className="w-5 h-5 text-purple-500" />
-                  <span className="text-sm">MCP</span>
-                </button>
-              </div>
-
-              {/* Documents List */}
-              <div className="space-y-3">
-                {documents.length === 0 ? (
-                  <div className="text-center py-8">
-                    <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500 text-sm">No documents uploaded</p>
-                    <p className="text-gray-400 text-xs mt-1">Upload files to get started</p>
-                  </div>
-                ) : (
-                  documents.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-                      <div className="flex items-center space-x-3">
-                        <FileText className="w-5 h-5 text-gray-400" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 truncate max-w-[200px]">
-                            {doc.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {(doc.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {doc.status === 'processing' && (
-                          <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
-                        )}
-                        {doc.status === 'ready' && (
-                          <CheckCircle className="w-4 h-4 text-green-500" />
-                        )}
-                        {doc.status === 'error' && (
-                          <XCircle className="w-4 h-4 text-red-500" />
-                        )}
-                        <button
-                          onClick={() => removeDocument(doc.id)}
-                          className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Board Members */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Board Members</h2>
-                <button
-                  onClick={() => setShowAddMember(!showAddMember)}
-                  className="flex items-center space-x-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add</span>
-                </button>
-              </div>
-
-              {/* Add Member Form */}
-              {showAddMember && (
-                <form onSubmit={handleAddBoardMember} className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="space-y-3">
-                    <input
-                      type="email"
-                      placeholder="Board member email address"
-                      value={newMember.email}
-                      onChange={(e) => setNewMember(prev => ({ ...prev, email: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                      required
-                    />
-                  </div>
-                  <div className="flex items-center justify-end space-x-2 mt-4">
-                    <button
-                      type="button"
-                      onClick={() => setShowAddMember(false)}
-                      className="px-3 py-2 text-gray-600 hover:text-gray-800 transition-colors text-sm"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                    >
-                      Add Member
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {/* Board Members List */}
-              <div className="space-y-3">
-                {boardMembers.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500 text-sm">No board members yet</p>
-                    <p className="text-gray-400 text-xs mt-1">Add members to enable agent notifications</p>
-                  </div>
-                ) : (
-                  <div className="max-h-64 overflow-y-auto space-y-3">
-                    {boardMembers.map((member) => (
-                      <div key={member.id} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <p className="text-sm font-medium text-gray-900 truncate">
-                                {member.name}
-                              </p>
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(member.role)}`}>
-                                {member.role}
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-500 truncate">
-                              {member.email}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              Added {isClient ? formatDistanceToNow(member.addedAt, { addSuffix: true }) : ''}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => handleRemoveBoardMember(member.id)}
-                            className="ml-2 p-1 text-gray-400 hover:text-red-500 transition-colors"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+  // Board Header Component
+  const BoardHeaderCard = () => (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+            <Users className="w-5 h-5 text-white" />
           </div>
-
-          {/* Right Panel: AI Chat Interface + Quick Actions */}
-          <div className="lg:col-span-3 space-y-6">
-            {/* AI Chat Interface */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 h-[800px] flex flex-col">
-              {/* Chat Header */}
-              <div className="p-6 border-b border-gray-200 bg-gray-50 rounded-t-xl">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900">Board Intelligence Assistant</h2>
-                    <p className="text-sm text-gray-500">
-                      {currentSessionId ? `Session: ${chatSessions.find(s => s.id === currentSessionId)?.title || 'Current Chat'}` : 'Autonomous governance analysis'}
-                    </p>
-                  </div>
-                  <button
-                    onClick={createNewChatSession}
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>New Intel</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Chat Messages */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50" ref={chatContainerRef}>
-                {chatMessages.length === 0 ? (
-                  <div className="text-center py-12">
-                    <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      Board Intelligence Assistant Ready
-                    </h3>
-                    <p className="text-gray-500 mb-6">
-                      Upload documents or connect data sources to activate autonomous analysis
-                    </p>
-                  </div>
-                ) : (
-                  chatMessages.map((message) => (
-                    <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] ${
-                        message.type === 'user' 
-                          ? 'bg-blue-600 text-white rounded-lg rounded-br-sm' 
-                          : 'bg-white text-gray-900 rounded-lg rounded-bl-sm border border-gray-200'
-                      } px-4 py-3 shadow-sm`}>
-                        {message.type === 'user' ? (
-                          <p className="text-sm">{message.content}</p>
-                        ) : (
-                          <div className="space-y-4">
-                            {message.content && (
-                              <div className="prose prose-sm max-w-none">
-                                <ReactMarkdown>{message.content}</ReactMarkdown>
-                              </div>
-                            )}
-                            
-                            {message.charts && message.charts.length > 0 && (
-                              <div className="space-y-4">
-                                {message.charts.map((chart, index) => (
-                                  <ChartRenderer key={index} chartData={chart} />
-                                ))}
-                              </div>
-                            )}
-                            
-                            {message.summary && (
-                              <div className="space-y-3">
-                                <h4 className="font-semibold text-gray-900">{message.summary.title}</h4>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                  {message.summary.metrics.map((metric, index) => (
-                                    <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                                      <div className="flex items-center justify-between mb-2">
-                                        <span className="text-sm font-medium text-gray-600">{metric.title}</span>
-                                        {metric.change !== undefined && metric.changeType === 'positive' && (
-                                          <TrendingUp className="w-4 h-4 text-green-500" />
-                                        )}
-                                        {metric.change !== undefined && metric.changeType === 'negative' && (
-                                          <TrendingDown className="w-4 h-4 text-red-500" />
-                                        )}
-                                      </div>
-                                      <div className="flex items-baseline space-x-2">
-                                        <span className="text-xl font-bold text-gray-900">{metric.value}</span>
-                                        {metric.change !== undefined && (
-                                          <span className={`text-sm font-medium ${
-                                            metric.changeType === 'positive' ? 'text-green-600' : 
-                                            metric.changeType === 'negative' ? 'text-red-600' : 'text-gray-600'
-                                          }`}>
-                                            {metric.change > 0 ? '+' : ''}{metric.change}%
-                                          </span>
-                                        )}
-                                      </div>
-                                        {metric.description && (
-                                          <p className="text-xs text-gray-500 mt-1">{metric.description}</p>
-                                        )}
-                                    </div>
-                                  ))}
-                                </div>
-                                {message.summary.insights && message.summary.insights.length > 0 && (
-                                  <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                    <h5 className="font-medium text-blue-900 mb-2">Key Insights</h5>
-                                    <ul className="space-y-1">
-                                      {message.summary.insights.map((insight, index) => (
-                                        <li key={index} className="text-sm text-blue-800">• {insight}</li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-xs opacity-70">
-                            {isClient ? format(message.timestamp, 'HH:mm') : ''}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Sample Questions */}
-              <div className="px-6 py-4 border-t border-gray-200 bg-white">
-                <div className="mb-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">Quick Analysis</h3>
-                  <div className="grid grid-cols-3 gap-3">
-                    {getSampleQuestions().map((question, index) => (
-                      <button
-                        key={index}
-                        onClick={() => {
-                          handleSampleQuestion(question.text)
-                        }}
-                        disabled={isProcessing || aiProviderStatus?.status === 'not_configured'}
-                        className="text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <div className="flex items-center space-x-2 mb-1">
-                          <span className="text-xs text-blue-600 uppercase tracking-wide font-medium">{question.source}</span>
-                        </div>
-                        <p className="text-sm text-gray-900 font-medium">{question.text}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Chat Input */}
-              <div className="p-6 border-t border-gray-200 bg-white rounded-b-xl">
-                <form onSubmit={sendMessage} className="flex space-x-3">
-                  <input
-                    type="text"
-                    value={currentMessage}
-                    onChange={(e) => setCurrentMessage(e.target.value)}
-                    placeholder="Ask about your governance data..."
-                    disabled={isProcessing || aiProviderStatus?.status === 'not_configured'}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!currentMessage.trim() || isProcessing || aiProviderStatus?.status === 'not_configured'}
-                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
-                  >
-                    {isProcessing ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Send className="w-4 h-4" />
-                    )}
-                    <span>{isProcessing ? 'Analyzing...' : 'Send'}</span>
-                  </button>
-                </form>
-              </div>
-            </div>
-
-            {/* Board Quick Actions */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-6">Board Actions</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <button
-                  onClick={handleSendSummary}
-                  disabled={isProcessing}
-                  className="bg-white border border-gray-200 rounded-xl p-6 hover:border-blue-300 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center text-center group"
-                >
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4 group-hover:bg-blue-200 transition-colors">
-                    <Mail className="w-6 h-6 text-blue-400" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900 mb-2">Send Summary</h3>
-                  <p className="text-sm text-gray-500 leading-relaxed">Generate and email executive summary to all board members</p>
-                </button>
-                
-                <button
-                  onClick={handleRequestData}
-                  disabled={isProcessing}
-                  className="bg-white border border-gray-200 rounded-xl p-6 hover:border-green-300 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center text-center group"
-                >
-                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4 group-hover:bg-green-200 transition-colors">
-                    <Database className="w-6 h-6 text-green-400" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900 mb-2">Request Data</h3>
-                  <p className="text-sm text-gray-500 leading-relaxed">Pull latest financial reports, metrics, and compliance data</p>
-                </button>
-                
-                <button
-                  onClick={handleGenerateScorecard}
-                  disabled={isProcessing}
-                  className="bg-white border border-gray-200 rounded-xl p-6 hover:border-purple-300 hover:bg-purple-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center text-center group"
-                >
-                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4 group-hover:bg-purple-200 transition-colors">
-                    <BarChart3 className="w-6 h-6 text-purple-400" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900 mb-2">Scorecard</h3>
-                  <p className="text-sm text-gray-500 leading-relaxed">Create governance scorecard with KPIs and risk metrics</p>
-                </button>
-                
-                <button
-                  onClick={handleRiskAlert}
-                  disabled={isProcessing}
-                  className="bg-white border border-gray-200 rounded-xl p-6 hover:border-orange-300 hover:bg-orange-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center text-center group"
-                >
-                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4 group-hover:bg-orange-200 transition-colors">
-                    <AlertCircle className="w-6 h-6 text-orange-400" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900 mb-2">Risk Alert</h3>
-                  <p className="text-sm text-gray-500 leading-relaxed">Identify urgent risks and generate action recommendations</p>
-                </button>
-              </div>
+          <div>
+            <h1 className="text-lg font-bold text-gray-900">
+              {currentBoard?.name || 'Board Workspace'}
+            </h1>
+            <div className="flex items-center space-x-3 mt-1">
+              <p className="text-xs text-gray-500">
+                {boardMembers.length} member{boardMembers.length !== 1 ? 's' : ''} • 
+                Last activity {currentBoard ? formatDistanceToNow(currentBoard.lastActivity, { addSuffix: true }) : 'now'}
+              </p>
+              {isAdmin && (
+                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                  Admin
+                </span>
+              )}
             </div>
           </div>
         </div>
       </div>
+    </div>
+  )
+
+  // Manual Action Modal
+  const ManualActionModal = () => (
+    showManualAction && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-xl p-4 w-full max-w-lg mx-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-gray-900">Custom Agent Action</h3>
+            <button
+              onClick={() => setShowManualAction(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                What would you like the AI agent to analyze?
+              </label>
+              <textarea
+                value={manualActionQuery}
+                onChange={(e) => setManualActionQuery(e.target.value)}
+                placeholder="Describe your specific analysis request..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                rows={3}
+              />
+            </div>
+            
+            <div className="flex items-center justify-end space-x-2">
+              <button
+                onClick={() => setShowManualAction(false)}
+                className="px-3 py-2 text-gray-600 hover:text-gray-800 transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (manualActionQuery.trim()) {
+                    handleAgentAction('Custom Analysis', manualActionQuery)
+                    setManualActionQuery('')
+                    setShowManualAction(false)
+                  }
+                }}
+                disabled={!manualActionQuery.trim() || isProcessing}
+                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+              >
+                {isProcessing ? 'Processing...' : 'Execute Action'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  )
+
+  return (
+    <div className="min-h-screen bg-white">
+      <Navbar currentPage="dashboard" />
+      <div className="px-4 py-4">
+        <BoardHeaderCard />
+        
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 max-w-none">
+          {/* Left Panel: Modular Cards */}
+          <div className="lg:col-span-1 space-y-4">
+            <ChatHistoryCard
+              chatSessions={chatSessions}
+              currentSessionId={currentSessionId}
+              currentBoard={currentBoard}
+              chatMessages={chatMessages}
+              isClient={isClient}
+              isAdmin={isAdmin}
+              onSwitchToSession={switchToSession}
+              onDeleteSession={deleteSession}
+              onUpdateSessionTitle={updateSessionTitle}
+            />
+            
+            <DocumentsCard
+              documents={documents}
+              isUploading={isUploading}
+              onFileUpload={handleFileUpload}
+              onRemoveDocument={removeDocument}
+            />
+            
+            <IntegrationsCard
+              integrations={integrations}
+              onConnect={handleIntegrationConnect}
+            />
+          </div>
+
+          {/* Middle Panel: Board Management Cards */}
+          <div className="lg:col-span-1 space-y-4">
+            <BoardMembersCard
+              boardMembers={boardMembers}
+              isAdmin={isAdmin}
+              currentUser={currentUser}
+              showAddMember={showAddMember}
+              newMember={newMember}
+              onToggleAddMember={toggleAddMember}
+              onUpdateNewMember={updateNewMember}
+              onAddMember={addMember}
+              onRemoveMember={removeMember}
+            />
+            
+            <NoteBoardCard
+              savedNotes={savedNotes}
+              isAdmin={isAdmin}
+              onSaveNote={saveNote}
+              onUpdateNote={updateNote}
+              onDeleteNote={deleteNote}
+              onTogglePin={togglePinNote}
+            />
+          </div>
+
+          {/* Right Panel: Chat Interface */}
+          <div className="lg:col-span-2">
+            <ChatInterfaceCard
+              chatMessages={chatMessages}
+              currentMessage={currentMessage}
+              isProcessing={isProcessing}
+              processingAction={processingAction}
+              boardMembers={boardMembers}
+              currentUser={currentUser}
+              currentSessionId={currentSessionId}
+              documents={documents}
+              integrations={integrations}
+              isClient={isClient}
+              onCreateNewSession={createNewChatSession}
+              onSendMessage={sendMemberMessage}
+              onMessageChange={handleChatInputChange}
+              onAgentAction={handleAgentAction}
+              onShowManualAction={() => setShowManualAction(true)}
+              getAgentActions={getAgentActions}
+            />
+          </div>
+        </div>
+      </div>
+
+      <ManualActionModal />
     </div>
   )
 } 
