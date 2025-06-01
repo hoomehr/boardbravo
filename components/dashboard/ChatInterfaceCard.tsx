@@ -271,65 +271,94 @@ export default function ChatInterfaceCard({
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-900'
                 } shadow-sm`}>
-                  <div className="text-xs whitespace-pre-wrap leading-relaxed">
-                    <ReactMarkdown>
-                      {message.content}
-                    </ReactMarkdown>
-                  </div>
+                  {/* Text Response - First 1000 characters */}
+                  {message.content && (
+                    <div className="text-xs whitespace-pre-wrap leading-relaxed">
+                      <ReactMarkdown>
+                        {message.content.length > 1000 
+                          ? message.content.substring(0, 1000) + '...'
+                          : message.content
+                        }
+                      </ReactMarkdown>
+                    </div>
+                  )}
                   
-                  {/* Charts Section */}
+                  {/* Summary Stats Section - 3x3 Grid */}
+                  {message.summary && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <h4 className="text-xs font-semibold text-gray-700 mb-2">📊 {message.summary.title}</h4>
+                      <div className="bg-white rounded-lg p-3 border border-gray-200">
+                        {/* 3x3 Grid of Metrics */}
+                        <div className="grid grid-cols-3 gap-2 mb-3">
+                          {message.summary.metrics && message.summary.metrics.slice(0, 9).map((metric: any, idx: number) => {
+                            const getIcon = (iconType: string) => {
+                              switch(iconType) {
+                                case 'revenue': return '💰'
+                                case 'users': return '👥'
+                                case 'target': return '🎯'
+                                case 'calendar': return '📅'
+                                case 'warning': return '⚠️'
+                                case 'success': return '✅'
+                                default: return '📊'
+                              }
+                            }
+                            
+                            const getChangeColor = (changeType: string) => {
+                              switch(changeType) {
+                                case 'positive': return 'text-green-600'
+                                case 'negative': return 'text-red-600'
+                                default: return 'text-gray-600'
+                              }
+                            }
+                            
+                            return (
+                              <div key={idx} className="bg-gray-50 rounded-lg p-2 text-center">
+                                <div className="text-lg mb-1">{getIcon(metric.icon)}</div>
+                                <div className="text-xs font-semibold text-gray-900 mb-1">{metric.title}</div>
+                                <div className="text-sm font-bold text-gray-900">{metric.value}</div>
+                                {metric.change !== undefined && metric.change !== 0 && (
+                                  <div className={`text-xs ${getChangeColor(metric.changeType)} flex items-center justify-center space-x-1`}>
+                                    {metric.changeType === 'positive' ? (
+                                      <TrendingUp className="w-3 h-3" />
+                                    ) : metric.changeType === 'negative' ? (
+                                      <TrendingDown className="w-3 h-3" />
+                                    ) : null}
+                                    <span>{metric.change > 0 ? '+' : ''}{metric.change}%</span>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                        
+                        {/* Insights */}
+                        {message.summary.insights && (
+                          <div className="text-xs text-gray-700">
+                            <div className="font-semibold mb-2">🔍 Key Insights:</div>
+                            <ul className="space-y-1">
+                              {message.summary.insights.map((insight: string, idx: number) => (
+                                <li key={idx} className="flex items-start space-x-1">
+                                  <span className="text-blue-600 mt-0.5">•</span>
+                                  <span>{insight}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Charts Section - After text and stats */}
                   {message.charts && message.charts.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-gray-200">
-                      <h4 className="text-xs font-semibold text-gray-700 mb-2">📊 Generated Charts & Analytics</h4>
+                      <h4 className="text-xs font-semibold text-gray-700 mb-2">📈 Data Visualizations</h4>
                       <div className="space-y-3">
                         {message.charts.map((chart, index) => (
                           <div key={index} className="bg-white rounded-lg p-3 border border-gray-200">
                             <ChartRenderer chartData={chart} />
                           </div>
                         ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Summary Section */}
-                  {message.summary && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <h4 className="text-xs font-semibold text-gray-700 mb-2">📋 Key Insights Summary</h4>
-                      <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                        <div className="text-xs text-gray-800 space-y-2">
-                          {message.summary.keyMetrics && (
-                            <div>
-                              <span className="font-semibold text-blue-800">Key Metrics:</span>
-                              <ul className="mt-1 ml-3 space-y-1">
-                                {message.summary.keyMetrics.map((metric: string, idx: number) => (
-                                  <li key={idx} className="text-xs">• {metric}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                          
-                          {message.summary.recommendations && (
-                            <div>
-                              <span className="font-semibold text-green-800">Recommendations:</span>
-                              <ul className="mt-1 ml-3 space-y-1">
-                                {message.summary.recommendations.map((rec: string, idx: number) => (
-                                  <li key={idx} className="text-xs">• {rec}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                          
-                          {message.summary.riskFactors && (
-                            <div>
-                              <span className="font-semibold text-red-800">Risk Factors:</span>
-                              <ul className="mt-1 ml-3 space-y-1">
-                                {message.summary.riskFactors.map((risk: string, idx: number) => (
-                                  <li key={idx} className="text-xs">• {risk}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
                       </div>
                     </div>
                   )}

@@ -145,16 +145,17 @@ Remember: You're advising sophisticated investors and board members who need act
     // Only generate charts for specific agent actions, not general @agent mentions
     const isSpecificAgentAction = originalPrompt.includes('Agent Action:')
     const shouldGenerateCharts = isSpecificAgentAction && this.shouldGenerateCharts(originalPrompt)
-    const charts = shouldGenerateCharts ? this.generateDataDrivenCharts(originalPrompt, hasDocuments) : []
+    
+    // Generate charts but limit to 2 maximum for chat display
+    const allCharts = shouldGenerateCharts ? this.generateDataDrivenCharts(originalPrompt, hasDocuments) : []
+    const charts = allCharts.slice(0, 2) // Limit to 2 charts maximum
     
     // Generate summary metrics for investor dashboard (only for specific agent actions)
+    // Enhanced to 9 metrics for 3x3 grid layout
     const summary = isSpecificAgentAction ? this.generateInvestorSummary(originalPrompt, hasDocuments) : undefined
 
-    // For chart-focused queries, return minimal text response
-    // For other queries, return full AI response
-    const finalResponseText = isChartQuery && charts.length > 0 
-      ? "" // No text response for chart-focused queries only
-      : text
+    // Always return the full AI response text (no truncation here, but display will handle 1000 char limit)
+    const finalResponseText = text
 
     return {
       response: finalResponseText,
@@ -445,6 +446,62 @@ Remember: You're advising sophisticated investors and board members who need act
             changeType: 'neutral',
             icon: 'calendar',
             description: 'Connect data sources for insights'
+          },
+          {
+            title: 'Analysis',
+            value: 'Ready',
+            change: 0,
+            changeType: 'neutral',
+            icon: 'target',
+            description: 'AI analysis engine ready'
+          },
+          {
+            title: 'Reports',
+            value: 'Pending',
+            change: 0,
+            changeType: 'neutral',
+            icon: 'warning',
+            description: 'Upload data to generate reports'
+          },
+          {
+            title: 'Insights',
+            value: 'Available',
+            change: 0,
+            changeType: 'neutral',
+            icon: 'success',
+            description: 'AI insights engine active'
+          },
+          {
+            title: 'Charts',
+            value: 'Ready',
+            change: 0,
+            changeType: 'neutral',
+            icon: 'target',
+            description: 'Visualization tools ready'
+          },
+          {
+            title: 'Data Sources',
+            value: '0',
+            change: 0,
+            changeType: 'neutral',
+            icon: 'warning',
+            description: 'No data sources connected'
+          },
+          {
+            title: 'AI Status',
+            value: 'Active',
+            change: 0,
+            changeType: 'positive',
+            icon: 'success',
+            description: 'AI analysis engine online'
+          },
+          {
+            title: 'Dashboard',
+            value: 'Ready',
+            change: 0,
+            changeType: 'positive',
+            icon: 'target',
+            description: 'Executive dashboard ready'
           }
         ],
         insights: [
@@ -499,6 +556,46 @@ Remember: You're advising sophisticated investors and board members who need act
             changeType: 'positive',
             icon: 'target',
             description: 'EBITDA Margin Expansion'
+          },
+          {
+            title: 'Cash Flow',
+            value: '$1.2M',
+            change: 18,
+            changeType: 'positive',
+            icon: 'revenue',
+            description: 'Operating Cash Flow'
+          },
+          {
+            title: 'ARR',
+            value: '$16.7M',
+            change: 34,
+            changeType: 'positive',
+            icon: 'target',
+            description: 'Annual Recurring Revenue'
+          },
+          {
+            title: 'Customer LTV',
+            value: '$28K',
+            change: 12,
+            changeType: 'positive',
+            icon: 'users',
+            description: 'Customer Lifetime Value'
+          },
+          {
+            title: 'Burn Rate',
+            value: '$420K',
+            change: -8,
+            changeType: 'positive',
+            icon: 'warning',
+            description: 'Monthly Cash Burn'
+          },
+          {
+            title: 'Runway',
+            value: '18 mo',
+            change: 2,
+            changeType: 'positive',
+            icon: 'calendar',
+            description: 'Cash Runway Remaining'
           }
         ],
         insights: [
@@ -546,6 +643,46 @@ Remember: You're advising sophisticated investors and board members who need act
             changeType: 'positive',
             icon: 'revenue',
             description: 'Potential financial exposure'
+          },
+          {
+            title: 'Operational Risk',
+            value: '32%',
+            change: -5,
+            changeType: 'positive',
+            icon: 'warning',
+            description: 'Operational risk percentage'
+          },
+          {
+            title: 'Market Risk',
+            value: '28%',
+            change: 3,
+            changeType: 'negative',
+            icon: 'target',
+            description: 'Market volatility exposure'
+          },
+          {
+            title: 'Cyber Risk',
+            value: 'Medium',
+            change: -1,
+            changeType: 'positive',
+            icon: 'warning',
+            description: 'Cybersecurity risk level'
+          },
+          {
+            title: 'Compliance Risk',
+            value: '18%',
+            change: -8,
+            changeType: 'positive',
+            icon: 'success',
+            description: 'Regulatory compliance risk'
+          },
+          {
+            title: 'Risk Monitoring',
+            value: '94%',
+            change: 6,
+            changeType: 'positive',
+            icon: 'target',
+            description: 'Risk monitoring coverage'
           }
         ],
         insights: [
@@ -593,6 +730,46 @@ Remember: You're advising sophisticated investors and board members who need act
             changeType: 'positive',
             icon: 'success',
             description: 'External audit preparedness'
+          },
+          {
+            title: 'GDPR Score',
+            value: '88%',
+            change: 5,
+            changeType: 'positive',
+            icon: 'target',
+            description: 'GDPR compliance level'
+          },
+          {
+            title: 'ISO 27001',
+            value: '85%',
+            change: 8,
+            changeType: 'positive',
+            icon: 'success',
+            description: 'Information security standard'
+          },
+          {
+            title: 'PCI DSS',
+            value: '94%',
+            change: 3,
+            changeType: 'positive',
+            icon: 'target',
+            description: 'Payment card industry standard'
+          },
+          {
+            title: 'Training Complete',
+            value: '87%',
+            change: 12,
+            changeType: 'positive',
+            icon: 'users',
+            description: 'Staff compliance training'
+          },
+          {
+            title: 'Policy Updates',
+            value: '15',
+            change: 8,
+            changeType: 'positive',
+            icon: 'calendar',
+            description: 'Policies updated this quarter'
           }
         ],
         insights: [
@@ -640,6 +817,46 @@ Remember: You're advising sophisticated investors and board members who need act
             changeType: 'positive',
             icon: 'target',
             description: 'Productivity vs baseline'
+          },
+          {
+            title: 'Revenue per Employee',
+            value: '$185K',
+            change: 15,
+            changeType: 'positive',
+            icon: 'revenue',
+            description: 'Employee productivity metric'
+          },
+          {
+            title: 'Customer Retention',
+            value: '97%',
+            change: 3,
+            changeType: 'positive',
+            icon: 'users',
+            description: 'Customer retention rate'
+          },
+          {
+            title: 'Time to Market',
+            value: '4.2 weeks',
+            change: -12,
+            changeType: 'positive',
+            icon: 'calendar',
+            description: 'Product development speed'
+          },
+          {
+            title: 'Quality Score',
+            value: '96%',
+            change: 4,
+            changeType: 'positive',
+            icon: 'success',
+            description: 'Product quality rating'
+          },
+          {
+            title: 'Innovation Index',
+            value: '8.4/10',
+            change: 0.6,
+            changeType: 'positive',
+            icon: 'target',
+            description: 'Innovation capability score'
           }
         ],
         insights: [
@@ -687,6 +904,46 @@ Remember: You're advising sophisticated investors and board members who need act
             changeType: 'positive',
             icon: 'revenue',
             description: 'Total addressable market'
+          },
+          {
+            title: 'Brand Strength',
+            value: '7.8/10',
+            change: 0.4,
+            changeType: 'positive',
+            icon: 'users',
+            description: 'Brand recognition score'
+          },
+          {
+            title: 'Innovation Pipeline',
+            value: '23',
+            change: 8,
+            changeType: 'positive',
+            icon: 'target',
+            description: 'Active innovation projects'
+          },
+          {
+            title: 'Partnership Value',
+            value: '$12M',
+            change: 35,
+            changeType: 'positive',
+            icon: 'revenue',
+            description: 'Strategic partnership revenue'
+          },
+          {
+            title: 'Market Penetration',
+            value: '34%',
+            change: 12,
+            changeType: 'positive',
+            icon: 'target',
+            description: 'Target market penetration'
+          },
+          {
+            title: 'Competitive Moat',
+            value: 'Strong',
+            change: 1,
+            changeType: 'positive',
+            icon: 'success',
+            description: 'Competitive differentiation'
           }
         ],
         insights: [
@@ -734,6 +991,46 @@ Remember: You're advising sophisticated investors and board members who need act
             changeType: 'positive',
             icon: 'target',
             description: 'Monthly Growth Rate'
+          },
+          {
+            title: 'CAC',
+            value: '$850',
+            change: -12,
+            changeType: 'positive',
+            icon: 'target',
+            description: 'Customer Acquisition Cost'
+          },
+          {
+            title: 'LTV/CAC Ratio',
+            value: '3.8x',
+            change: 15,
+            changeType: 'positive',
+            icon: 'success',
+            description: 'Lifetime Value to CAC ratio'
+          },
+          {
+            title: 'Churn Rate',
+            value: '3%',
+            change: -1,
+            changeType: 'positive',
+            icon: 'users',
+            description: 'Monthly customer churn'
+          },
+          {
+            title: 'Expansion Revenue',
+            value: '125%',
+            change: 8,
+            changeType: 'positive',
+            icon: 'revenue',
+            description: 'Net revenue retention'
+          },
+          {
+            title: 'Time to Value',
+            value: '3.2 weeks',
+            change: -18,
+            changeType: 'positive',
+            icon: 'calendar',
+            description: 'Customer onboarding time'
           }
         ],
         insights: [
@@ -780,6 +1077,46 @@ Remember: You're advising sophisticated investors and board members who need act
           changeType: 'neutral',
           icon: 'calendar',
           description: 'Cash Runway Remaining'
+        },
+        {
+          title: 'Team Size',
+          value: '45',
+          change: 8,
+          changeType: 'positive',
+          icon: 'users',
+          description: 'Total Employees'
+        },
+        {
+          title: 'Product Velocity',
+          value: '32',
+          change: 12,
+          changeType: 'positive',
+          icon: 'target',
+          description: 'Features shipped this quarter'
+        },
+        {
+          title: 'Customer NPS',
+          value: '67',
+          change: 8,
+          changeType: 'positive',
+          icon: 'success',
+          description: 'Net Promoter Score'
+        },
+        {
+          title: 'Market Position',
+          value: '#3',
+          change: 1,
+          changeType: 'positive',
+          icon: 'target',
+          description: 'Competitive ranking'
+        },
+        {
+          title: 'Funding Status',
+          value: 'Series B',
+          change: 0,
+          changeType: 'neutral',
+          icon: 'revenue',
+          description: 'Current funding stage'
         }
       ],
       insights: [
