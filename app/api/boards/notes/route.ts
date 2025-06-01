@@ -13,6 +13,8 @@ interface SavedNote {
   updatedAt: string
   isPinned: boolean
   tags: string[]
+  charts?: any[] // Store chart data from AI responses
+  summary?: any // Store summary metrics from AI responses
 }
 
 interface NotesData {

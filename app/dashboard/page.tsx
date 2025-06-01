@@ -784,7 +784,7 @@ export default function DashboardPage() {
   }
 
   // Function to save chat messages as notes
-  const saveMessageAsNote = async (messageContent: string, messageType: 'user' | 'assistant') => {
+  const saveMessageAsNote = async (messageContent: string, messageType: 'user' | 'assistant', charts?: any[], summary?: any) => {
     // Helper function to detect action type from message content
     const getActionCategoryFromContent = (content: string): 'financial' | 'risk' | 'compliance' | 'performance' | 'strategy' | 'general' => {
       const agentActions = getAgentActions()
@@ -941,7 +941,9 @@ export default function DashboardPage() {
             : ['user-message'])
         : (actionCategory !== 'general' ? ['ai-analysis', actionCategory] 
             : isCustomAction ? ['custom-analysis', actionCategory]
-            : ['ai-response'])
+            : ['ai-response']),
+      charts: charts || undefined, // Include charts data if provided
+      summary: summary || undefined // Include summary data if provided
     })
   }
 

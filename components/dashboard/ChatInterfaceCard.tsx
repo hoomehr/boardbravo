@@ -46,7 +46,7 @@ interface ChatInterfaceCardProps {
   onMessageChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   onAgentAction: (actionTitle: string, actionDescription: string) => void
   onShowManualAction: () => void
-  onSaveMessageAsNote: (messageContent: string, messageType: 'user' | 'assistant') => void
+  onSaveMessageAsNote: (messageContent: string, messageType: 'user' | 'assistant', charts?: any[], summary?: any) => void
   getAgentActions: () => AgentAction[]
 }
 
@@ -92,163 +92,595 @@ const ProcessingAnimation = ({ actionTitle }: { actionTitle?: string }) => {
   )
 }
 
-// Modal component for full AI response
-const MessageModal = ({ message, isOpen, onClose }: { message: ChatMessage | null, isOpen: boolean, onClose: () => void }) => {
-  if (!isOpen || !message) return null
+// Helper function to generate modal title based on message content
+const getModalTitle = (message: ChatMessage) => {
+  const content = message.content.toLowerCase()
+  
+  // Check for agent action types
+  if (content.includes('financial analysis') || content.includes('q4 financial')) {
+    return 'Financial Performance Analysis'
+  }
+  if (content.includes('enterprise risk') || content.includes('risk analysis')) {
+    return 'Enterprise Risk Assessment'
+  }
+  if (content.includes('compliance audit') || content.includes('regulatory compliance')) {
+    return 'Regulatory Compliance Report'
+  }
+  if (content.includes('performance dashboard') || content.includes('executive performance')) {
+    return 'Executive Performance Dashboard'
+  }
+  if (content.includes('strategic intelligence') || content.includes('strategic')) {
+    return 'Strategic Intelligence Report'
+  }
+  
+  // Check for specific custom actions
+  if (content.includes('document summary')) {
+    return 'Document Summary & Analysis'
+  }
+  if (content.includes('action items extraction')) {
+    return 'Action Items & Next Steps'
+  }
+  if (content.includes('board readiness check')) {
+    return 'Board Meeting Readiness'
+  }
+  if (content.includes('stakeholder communication')) {
+    return 'Stakeholder Communication Brief'
+  }
+  if (content.includes('market trends analysis')) {
+    return 'Market Trends & Insights'
+  }
+  if (content.includes('competitive benchmarking')) {
+    return 'Competitive Analysis Report'
+  }
+  if (content.includes('investment readiness')) {
+    return 'Investment Readiness Assessment'
+  }
+  if (content.includes('esg assessment')) {
+    return 'ESG & Sustainability Report'
+  }
+  
+  // Check for general content types
+  if (content.includes('revenue') || content.includes('financial')) {
+    return 'Financial Analysis Report'
+  }
+  if (content.includes('growth') || content.includes('metrics')) {
+    return 'Growth & Performance Metrics'
+  }
+  if (content.includes('risk')) {
+    return 'Risk Analysis & Mitigation'
+  }
+  if (content.includes('market') || content.includes('competitive')) {
+    return 'Market & Competitive Analysis'
+  }
+  if (content.includes('customer') || content.includes('user')) {
+    return 'Customer Analytics Report'
+  }
+  
+  // Default titles
+  if (message.charts && message.charts.length > 0) {
+    return 'Data Analysis & Visualizations'
+  }
+  if (message.summary && message.summary.metrics) {
+    return 'Executive Summary & Metrics'
+  }
+  
+  return 'AI Analysis Report'
+}
+
+// Enhanced Modal Component for Structured AI Response Display
+const StructuredContentRenderer = ({ structuredData }: { structuredData: any }) => {
+  if (!structuredData) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl">
-        {/* Enhanced Modal Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-              <Bot className="w-7 h-7 text-white" />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">Complete AI Analysis</h3>
-              <p className="text-sm text-gray-600">{format(message.timestamp, 'MMMM dd, yyyy • HH:mm')}</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-white rounded-lg"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        {/* Scrollable Modal Content */}
-        <div className="overflow-y-auto" style={{ maxHeight: 'calc(95vh - 100px)' }}>
-          <div className="p-8 space-y-8">
-            {/* Full Text Response with Enhanced Typography */}
-            {message.content && (
-              <div className="bg-white">
-                <div className="prose prose-lg max-w-none text-gray-800 leading-relaxed">
-                  <ReactMarkdown 
-                    components={{
-                      h1: ({node, ...props}) => <h1 className="text-3xl font-bold text-gray-900 mb-6 pb-3 border-b border-gray-200" {...props} />,
-                      h2: ({node, ...props}) => <h2 className="text-2xl font-semibold text-gray-900 mt-8 mb-4" {...props} />,
-                      h3: ({node, ...props}) => <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3" {...props} />,
-                      p: ({node, ...props}) => <p className="text-gray-700 mb-4 leading-relaxed" {...props} />,
-                      ul: ({node, ...props}) => <ul className="space-y-2 mb-4" {...props} />,
-                      li: ({node, ...props}) => <li className="flex items-start space-x-2 text-gray-700"><span className="text-blue-600 mt-2">•</span><span {...props} /></li>,
-                    }}
-                  >
-                    {message.content}
-                  </ReactMarkdown>
+    <div className="space-y-8">
+      {/* Executive Summary */}
+      {structuredData.executiveSummary && (
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl opacity-30"></div>
+          <div className="relative bg-white rounded-3xl p-8 shadow-lg border border-gray-100">
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
+                <span className="text-white text-lg">📋</span>
+              </div>
+              <div>
+                <h4 className="text-xl font-bold text-gray-900">{structuredData.executiveSummary.title}</h4>
+                <div className="flex items-center space-x-3 mt-1">
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    structuredData.executiveSummary.riskLevel === 'high' ? 'bg-red-100 text-red-700' :
+                    structuredData.executiveSummary.riskLevel === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-green-100 text-green-700'
+                  }`}>
+                    Risk: {structuredData.executiveSummary.riskLevel}
+                  </span>
+                  {structuredData.executiveSummary.actionRequired && (
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">
+                      Action Required
+                    </span>
+                  )}
                 </div>
               </div>
+            </div>
+            
+            <p className="text-gray-700 mb-6 text-lg leading-relaxed">{structuredData.executiveSummary.overview}</p>
+            
+            {structuredData.executiveSummary.keyPoints?.length > 0 && (
+              <div className="grid gap-3">
+                {structuredData.executiveSummary.keyPoints.map((point: string, idx: number) => (
+                  <div key={idx} className="flex items-start space-x-3 p-4 bg-blue-50 rounded-xl border-l-4 border-blue-500">
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-white text-sm font-bold">{idx + 1}</span>
+                    </div>
+                    <span className="text-gray-700 flex-1 font-medium">{point}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Analysis Sections */}
+      {structuredData.analysis && (
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-blue-50 rounded-3xl opacity-30"></div>
+          <div className="relative bg-white rounded-3xl p-8 shadow-lg border border-gray-100">
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl flex items-center justify-center">
+                <span className="text-white text-lg">🔍</span>
+              </div>
+              <h4 className="text-xl font-bold text-gray-900">Detailed Analysis</h4>
+            </div>
+            
+            {structuredData.analysis.introduction && (
+              <p className="text-gray-700 mb-8 text-lg leading-relaxed">{structuredData.analysis.introduction}</p>
             )}
             
-            {/* Enhanced Summary Stats Section */}
-            {message.summary && (
-              <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl p-8 border border-gray-200">
-                <div className="flex items-center space-x-3 mb-6">
-                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-                    <span className="text-xl">📊</span>
+            {structuredData.analysis.sections?.map((section: any, idx: number) => (
+              <div key={idx} className="mb-8 last:mb-0">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold ${
+                    section.importance === 'high' ? 'bg-red-500' :
+                    section.importance === 'medium' ? 'bg-yellow-500' :
+                    'bg-green-500'
+                  }`}>
+                    {idx + 1}
                   </div>
-                  <h4 className="text-2xl font-bold text-gray-900">{message.summary.title}</h4>
+                  <h5 className="text-lg font-bold text-gray-900">{section.title}</h5>
+                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                    section.importance === 'high' ? 'bg-red-100 text-red-700' :
+                    section.importance === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-green-100 text-green-700'
+                  }`}>
+                    {section.importance}
+                  </span>
                 </div>
                 
-                {/* Enhanced 3x2 Grid of All Metrics */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                  {message.summary.metrics && message.summary.metrics.map((metric: any, idx: number) => {
-                    const getIcon = (iconType: string) => {
-                      switch(iconType) {
-                        case 'revenue': return '💰'
-                        case 'users': return '👥'
-                        case 'target': return '🎯'
-                        case 'calendar': return '📅'
-                        case 'warning': return '⚠️'
-                        case 'success': return '✅'
-                        default: return '📊'
-                      }
-                    }
-                    
-                    const getChangeColor = (changeType: string) => {
-                      switch(changeType) {
-                        case 'positive': return 'text-green-600'
-                        case 'negative': return 'text-red-600'
-                        default: return 'text-gray-600'
-                      }
-                    }
-                    
-                    return (
-                      <div key={idx} className="bg-white rounded-xl p-6 text-center border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="text-4xl mb-3">{getIcon(metric.icon)}</div>
-                        <div className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide">{metric.title}</div>
-                        <div className="text-3xl font-bold text-gray-900 mb-3">{metric.value}</div>
-                        {metric.change !== undefined && metric.change !== 0 && (
-                          <div className={`text-sm font-semibold ${getChangeColor(metric.changeType)} flex items-center justify-center space-x-2`}>
-                            {metric.changeType === 'positive' ? (
-                              <TrendingUp className="w-5 h-5" />
-                            ) : metric.changeType === 'negative' ? (
-                              <TrendingDown className="w-5 h-5" />
-                            ) : null}
-                            <span>{metric.change > 0 ? '+' : ''}{metric.change}%</span>
-                          </div>
-                        )}
-                        {metric.description && (
-                          <p className="text-xs text-gray-500 mt-3 leading-relaxed">{metric.description}</p>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
+                <p className="text-gray-700 mb-4 leading-relaxed">{section.content}</p>
                 
-                {/* Enhanced Insights */}
-                {message.summary.insights && (
-                  <div className="bg-white rounded-xl p-6 border border-gray-200">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                        <span className="text-lg">🔍</span>
-                      </div>
-                      <h5 className="text-lg font-bold text-gray-900">Key Insights</h5>
-                    </div>
-                    <div className="space-y-3">
-                      {message.summary.insights.map((insight: string, idx: number) => (
-                        <div key={idx} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                          <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <span className="text-white text-xs font-bold">{idx + 1}</span>
-                          </div>
-                          <p className="text-gray-700 leading-relaxed">{insight}</p>
+                {section.insights?.length > 0 && (
+                  <div className="bg-gray-50 rounded-xl p-4 border-l-4 border-purple-500">
+                    <h6 className="font-semibold text-gray-900 mb-2">Key Insights:</h6>
+                    <div className="space-y-2">
+                      {section.insights.map((insight: string, insightIdx: number) => (
+                        <div key={insightIdx} className="flex items-start space-x-2">
+                          <div className="w-1.5 h-1.5 bg-purple-500 rounded-full mt-2 flex-shrink-0"></div>
+                          <span className="text-gray-700 text-sm">{insight}</span>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
-            )}
+            ))}
             
-            {/* Enhanced Charts Section */}
-            {message.charts && message.charts.length > 0 && (
-              <div className="bg-white rounded-2xl p-8 border border-gray-200">
-                <div className="flex items-center space-x-3 mb-8">
-                  <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center">
-                    <span className="text-xl">📈</span>
-                  </div>
-                  <h4 className="text-2xl font-bold text-gray-900">Data Visualizations</h4>
-                  <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold">
-                    {message.charts.length} {message.charts.length === 1 ? 'Chart' : 'Charts'}
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {message.charts.map((chart, index) => (
-                    <div key={index} className="bg-gray-50 rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
-                      <div className="mb-4">
-                        <h5 className="text-lg font-semibold text-gray-900 mb-2">{chart.title}</h5>
-                        {chart.description && (
-                          <p className="text-sm text-gray-600">{chart.description}</p>
-                        )}
+            {structuredData.analysis.conclusion && (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200 mt-6">
+                <h6 className="font-bold text-gray-900 mb-2 flex items-center space-x-2">
+                  <span className="text-lg">💡</span>
+                  <span>Conclusion</span>
+                </h6>
+                <p className="text-gray-700 leading-relaxed">{structuredData.analysis.conclusion}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Recommendations */}
+      {structuredData.recommendations?.length > 0 && (
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl opacity-30"></div>
+          <div className="relative bg-white rounded-3xl p-8 shadow-lg border border-gray-100">
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center">
+                <span className="text-white text-lg">🎯</span>
+              </div>
+              <h4 className="text-xl font-bold text-gray-900">Strategic Recommendations</h4>
+            </div>
+            
+            <div className="grid gap-6">
+              {structuredData.recommendations.map((rec: any, idx: number) => (
+                <div key={idx} className="group relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl opacity-5 group-hover:opacity-10 transition-opacity"></div>
+                  <div className="relative p-6 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-gradient-to-br from-green-600 to-emerald-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                          {idx + 1}
+                        </div>
+                        <h5 className="text-lg font-bold text-gray-900">{rec.title}</h5>
                       </div>
-                      <div style={{ height: '350px' }}>
-                        <ChartRenderer chartData={chart} />
+                      <div className="flex items-center space-x-2">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          rec.priority === 'high' ? 'bg-red-100 text-red-700' :
+                          rec.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-green-100 text-green-700'
+                        }`}>
+                          {rec.priority} priority
+                        </span>
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                          {rec.timeframe.replace('_', ' ')}
+                        </span>
                       </div>
                     </div>
-                  ))}
+                    
+                    <p className="text-gray-700 mb-4 leading-relaxed">{rec.description}</p>
+                    
+                    <div className="bg-green-50 rounded-lg p-4 border-l-4 border-green-500">
+                      <h6 className="font-semibold text-gray-900 mb-2">Expected Outcome:</h6>
+                      <p className="text-gray-700 text-sm">{rec.expectedOutcome}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Risk Assessment */}
+      {structuredData.riskAssessment && (
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-red-50 to-orange-50 rounded-3xl opacity-30"></div>
+          <div className="relative bg-white rounded-3xl p-8 shadow-lg border border-gray-100">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-orange-600 rounded-xl flex items-center justify-center">
+                  <span className="text-white text-lg">⚠️</span>
+                </div>
+                <h4 className="text-xl font-bold text-gray-900">Risk Assessment</h4>
+              </div>
+              <div className="text-center">
+                <div className={`text-3xl font-black mb-1 ${
+                  structuredData.riskAssessment.overallScore >= 7 ? 'text-red-600' :
+                  structuredData.riskAssessment.overallScore >= 4 ? 'text-yellow-600' :
+                  'text-green-600'
+                }`}>
+                  {structuredData.riskAssessment.overallScore}/10
+                </div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Overall Risk</div>
+              </div>
+            </div>
+            
+            {structuredData.riskAssessment.risks?.length > 0 && (
+              <div className="grid gap-4">
+                {structuredData.riskAssessment.risks.map((risk: any, idx: number) => (
+                  <div key={idx} className="group relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-orange-500 rounded-xl opacity-5 group-hover:opacity-10 transition-opacity"></div>
+                    <div className="relative p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold ${
+                            risk.severity === 'critical' ? 'bg-red-600' :
+                            risk.severity === 'high' ? 'bg-orange-500' :
+                            risk.severity === 'medium' ? 'bg-yellow-500' :
+                            'bg-green-500'
+                          }`}>
+                            {idx + 1}
+                          </div>
+                          <h6 className="font-bold text-gray-900">{risk.title}</h6>
+                        </div>
+                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                          risk.severity === 'critical' ? 'bg-red-100 text-red-700' :
+                          risk.severity === 'high' ? 'bg-orange-100 text-orange-700' :
+                          risk.severity === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-green-100 text-green-700'
+                        }`}>
+                          {risk.severity}
+                        </span>
+                      </div>
+                      
+                      <p className="text-gray-700 text-sm mb-3">{risk.description}</p>
+                      
+                      <div className="grid grid-cols-2 gap-4 mb-3">
+                        <div className="text-center p-3 bg-gray-50 rounded-lg">
+                          <div className="text-lg font-bold text-gray-900">{risk.probability}/10</div>
+                          <div className="text-xs text-gray-500">Probability</div>
+                        </div>
+                        <div className="text-center p-3 bg-gray-50 rounded-lg">
+                          <div className="text-lg font-bold text-gray-900">{risk.impact}/10</div>
+                          <div className="text-xs text-gray-500">Impact</div>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-blue-50 rounded-lg p-3 border-l-4 border-blue-500">
+                        <h6 className="font-semibold text-gray-900 mb-1 text-xs">Mitigation Strategy:</h6>
+                        <p className="text-gray-700 text-sm">{risk.mitigation}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Modal component for full AI response
+const MessageModal = ({ message, isOpen, onClose }: { message: ChatMessage | null, isOpen: boolean, onClose: () => void }) => {
+  if (!isOpen || !message) return null
+
+  // Clean content to remove chart data references
+  const cleanContent = (content: string) => {
+    // Remove chart-related content that might be embedded in text
+    let cleaned = content
+      .replace(/\*\*Charts?.*?\*\*/gi, '')
+      .replace(/Chart \d+:.*?\n/gi, '')
+      .replace(/\[Chart:.*?\]/gi, '')
+      .replace(/📊.*?chart.*?\n/gi, '')
+      .replace(/📈.*?chart.*?\n/gi, '')
+      .replace(/\*\*Data Visualization.*?\*\*/gi, '')
+      .replace(/\*\*Visual Analysis.*?\*\*/gi, '')
+    
+    return cleaned.trim()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-3xl max-w-7xl w-full max-h-[95vh] overflow-hidden shadow-2xl border border-gray-100">
+        {/* Enhanced Modal Header with Gradient */}
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 opacity-10"></div>
+          <div className="relative flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50">
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl transform rotate-3 hover:rotate-0 transition-transform duration-300">
+                  <Bot className="w-7 h-7 text-white" />
+                </div>
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
+                  <span className="text-white text-xs">✓</span>
                 </div>
               </div>
+              <div>
+                <h3 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                  {getModalTitle(message)}
+                </h3>
+                <p className="text-sm text-gray-600 mt-1 flex items-center space-x-2">
+                  <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+                  <span>{format(message.timestamp, 'MMMM dd, yyyy • HH:mm')}</span>
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="group relative p-2 text-gray-400 hover:text-gray-600 transition-all duration-200 hover:bg-white rounded-xl hover:shadow-lg"
+            >
+              <X className="w-5 h-5 group-hover:rotate-90 transition-transform duration-200" />
+            </button>
+          </div>
+        </div>
+
+        {/* Scrollable Modal Content */}
+        <div className="overflow-y-auto" style={{ maxHeight: 'calc(95vh - 120px)' }}>
+          <div className="p-8 pb-6 space-y-8">
+            {/* Try to render structured data first, fallback to legacy format */}
+            {message.summary && typeof message.summary === 'object' && (message.summary.executiveSummary || message.summary.analysis) ? (
+              <StructuredContentRenderer structuredData={message.summary} />
+            ) : (
+              <>
+                {/* Enhanced Text Response with Creative Typography */}
+                {message.content && (
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-blue-50 rounded-3xl opacity-30"></div>
+                    <div className="relative bg-white rounded-3xl p-8 shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+                      <div className="flex items-center space-x-3 mb-6">
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center">
+                          <span className="text-white text-lg">📝</span>
+                        </div>
+                        <h4 className="text-xl font-bold text-gray-900">Analysis Report</h4>
+                      </div>
+                      
+                      <div className="prose prose-lg max-w-none text-gray-800 leading-relaxed">
+                        <ReactMarkdown 
+                          components={{
+                            h1: ({node, ...props}) => <h1 className="text-3xl font-bold text-gray-900 mb-6 pb-4 border-b-2 border-gray-200" {...props} />,
+                            h2: ({node, ...props}) => <h2 className="text-2xl font-semibold text-gray-900 mt-8 mb-4 flex items-center space-x-2" {...props} />,
+                            h3: ({node, ...props}) => <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3" {...props} />,
+                            p: ({node, ...props}) => <p className="text-gray-700 mb-4 leading-relaxed text-base" {...props} />,
+                            ul: ({node, ...props}) => <div className="space-y-3 mb-6">{props.children}</div>,
+                            li: ({node, ...props}) => (
+                              <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-xl border-l-4 border-blue-500">
+                                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                                <span className="text-gray-700 flex-1">{props.children}</span>
+                              </div>
+                            ),
+                            strong: ({node, ...props}) => <span className="font-bold text-gray-900 bg-yellow-100 px-1 rounded" {...props} />,
+                          }}
+                        >
+                          {cleanContent(message.content)}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Enhanced Summary Stats Section with Creative Cards */}
+                {message.summary && (
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl opacity-5"></div>
+                    <div className="relative bg-white rounded-3xl p-8 shadow-xl border border-gray-100 hover:shadow-2xl transition-all duration-300">
+                      <div className="flex items-center space-x-4 mb-8">
+                        <div className="relative">
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+                            <span className="text-xl">📊</span>
+                          </div>
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs">✓</span>
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            Executive Metrics Dashboard
+                          </h4>
+                          <p className="text-gray-600 mt-1">Key performance indicators and insights</p>
+                        </div>
+                      </div>
+                      
+                      {/* Creative 3x2 Grid with Floating Cards */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                        {message.summary.metrics && message.summary.metrics.map((metric: any, idx: number) => {
+                          const getIcon = (iconType: string) => {
+                            switch(iconType) {
+                              case 'revenue': return '💰'
+                              case 'users': return '👥'
+                              case 'target': return '🎯'
+                              case 'calendar': return '📅'
+                              case 'warning': return '⚠️'
+                              case 'success': return '✅'
+                              default: return '📊'
+                            }
+                          }
+                          
+                          const getChangeColor = (changeType: string) => {
+                            switch(changeType) {
+                              case 'positive': return 'text-green-600'
+                              case 'negative': return 'text-red-600'
+                              default: return 'text-gray-600'
+                            }
+                          }
+                          
+                          const getCardColor = (index: number) => {
+                            const colors = [
+                              'from-blue-500 to-cyan-500',
+                              'from-purple-500 to-pink-500', 
+                              'from-green-500 to-emerald-500',
+                              'from-orange-500 to-red-500',
+                              'from-indigo-500 to-purple-500',
+                              'from-teal-500 to-blue-500'
+                            ]
+                            return colors[index % colors.length]
+                          }
+                          
+                          return (
+                            <div key={idx} className="group relative">
+                              <div className="absolute inset-0 bg-gradient-to-br opacity-10 rounded-2xl blur-xl group-hover:opacity-20 transition-opacity"></div>
+                              <div className="relative bg-white rounded-2xl p-6 text-center border border-gray-100 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                                <div className="relative mb-4">
+                                  <div className={`w-16 h-16 bg-gradient-to-br ${getCardColor(idx)} rounded-2xl flex items-center justify-center shadow-lg mx-auto text-2xl transform group-hover:scale-110 transition-transform duration-300`}>
+                                    {getIcon(metric.icon)}
+                                  </div>
+                                </div>
+                                <div className="text-sm font-bold text-gray-500 mb-2 uppercase tracking-wider">{metric.title}</div>
+                                <div className="text-3xl font-black text-gray-900 mb-3">{metric.value}</div>
+                                {metric.change !== undefined && metric.change !== 0 && (
+                                  <div className={`text-sm font-bold ${getChangeColor(metric.changeType)} flex items-center justify-center space-x-2 bg-gray-50 rounded-full px-3 py-1`}>
+                                    {metric.changeType === 'positive' ? (
+                                      <TrendingUp className="w-4 h-4" />
+                                    ) : metric.changeType === 'negative' ? (
+                                      <TrendingDown className="w-4 h-4" />
+                                    ) : null}
+                                    <span>{metric.change > 0 ? '+' : ''}{metric.change}%</span>
+                                  </div>
+                                )}
+                                {metric.description && (
+                                  <p className="text-xs text-gray-500 mt-3 leading-relaxed bg-gray-50 rounded-lg p-2">{metric.description}</p>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      
+                      {/* Enhanced Insights with Creative Design */}
+                      {message.summary.insights && (
+                        <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl p-6 border border-gray-200">
+                          <div className="flex items-center space-x-3 mb-6">
+                            <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                              <span className="text-lg">🔍</span>
+                            </div>
+                            <h5 className="text-xl font-bold text-gray-900">Strategic Insights</h5>
+                          </div>
+                          <div className="grid gap-4">
+                            {message.summary.insights.map((insight: string, idx: number) => (
+                              <div key={idx} className="group relative">
+                                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl opacity-5 group-hover:opacity-10 transition-opacity"></div>
+                                <div className="relative flex items-start space-x-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200">
+                                  <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-md">
+                                    <span className="text-white text-sm font-bold">{idx + 1}</span>
+                                  </div>
+                                  <p className="text-gray-700 leading-relaxed flex-1 font-medium">{insight}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Enhanced Charts Section with Better Containment */}
+                {message.charts && message.charts.length > 0 && (
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-600 rounded-3xl opacity-5"></div>
+                    <div className="relative bg-white rounded-3xl p-8 shadow-xl border border-gray-100 hover:shadow-2xl transition-all duration-300">
+                      <div className="flex items-center space-x-4 mb-8">
+                        <div className="relative">
+                          <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
+                            <span className="text-xl">📈</span>
+                          </div>
+                          <div className="absolute -top-1 -right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                            {message.charts.length}
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                            Data Visualizations
+                          </h4>
+                          <p className="text-gray-600 mt-1">Interactive charts and analytics</p>
+                        </div>
+                      </div>
+                      
+                      {/* Enhanced Chart Grid with Better Containment */}
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                        {message.charts.map((chart, index) => (
+                          <div key={index} className="group relative">
+                            <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-blue-100 rounded-2xl opacity-50 group-hover:opacity-70 transition-opacity"></div>
+                            <div className="relative bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+                              {/* Chart Container with Proper Containment - No Header to Avoid Double Titles */}
+                              <div className="p-6 bg-white">
+                                <div 
+                                  className="w-full rounded-xl overflow-hidden" 
+                                  style={{ 
+                                    height: '400px',
+                                    minHeight: '400px',
+                                    maxHeight: '400px'
+                                  }}
+                                >
+                                  <ChartRenderer chartData={chart} />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -494,18 +926,24 @@ export default function ChatInterfaceCard({
   }
 
   // Handle saving message as note
-  const handleSaveMessageAsNote = async (messageId: string, content: string, type: 'user' | 'assistant') => {
+  const handleSaveMessageAsNote = async (messageId: string, content: string, type: 'user' | 'assistant', message: ChatMessage) => {
     // Prevent saving if already saved
     if (savedMessages.has(messageId)) {
+      // If already saved, open the modal to view the content
+      openModal(message)
       return
     }
 
     try {
-      await onSaveMessageAsNote(content, type)
+      // Pass complete message data including charts and summary
+      await onSaveMessageAsNote(content, type, message.charts, message.summary)
       // Permanently mark this message as saved
       setSavedMessages(prev => new Set(prev).add(messageId))
       
-      console.log(`Message ${messageId} saved to notes permanently`)
+      // Open the modal to show the saved content
+      openModal(message)
+      
+      console.log(`Message ${messageId} saved to notes with charts and summary data`)
     } catch (error) {
       console.error('Failed to save message as note:', error)
     }
@@ -684,7 +1122,7 @@ export default function ChatInterfaceCard({
                     const actionInfo = getActionTypeFromContent(message.content)
                     return (
                       <button
-                        onClick={() => handleSaveMessageAsNote(message.id, message.content, message.type)}
+                        onClick={(e) => handleSaveMessageAsNote(message.id, message.content, message.type, message)}
                         disabled={savedMessages.has(message.id)}
                         className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors duration-200 ${
                           savedMessages.has(message.id)

@@ -50,17 +50,108 @@ class GeminiProvider implements AIProvider {
       console.log('Generating response with provider: Google Gemini')
       console.log('Documents received:', documents ? `Array with ${documents.length} items` : 'No documents')
       
-      // Enhanced investor-focused system prompt
+      // Enhanced investor-focused system prompt with JSON structure
       const systemPrompt = `You are BoardBravo AI, an expert investment analyst and board advisor assistant. You specialize in analyzing board documents, financial reports, and strategic materials for investors, board members, and executives.
 
-RESPONSE STRUCTURE - Always follow this format:
-1. EXECUTIVE BRIEF (2-3 sentences max)
-2. KEY INSIGHTS (3-5 bullet points)
-3. DETAILED ANALYSIS (structured sections as needed)
-4. CHARTS/VISUALS (when data is available)
-5. ACTION ITEMS/RECOMMENDATIONS
+CRITICAL: Always return your response in the following JSON structure. This is mandatory for proper system integration.
 
-RESPONSE GUIDELINES: Provide comprehensive, detailed responses that fully address the user's request. Focus on delivering actionable insights and thorough analysis without artificial length restrictions.
+JSON RESPONSE TEMPLATE:
+{
+  "executiveSummary": {
+    "title": "Brief descriptive title",
+    "overview": "2-3 sentence executive summary",
+    "keyPoints": ["Point 1", "Point 2", "Point 3"],
+    "riskLevel": "low|medium|high",
+    "actionRequired": true|false
+  },
+  "analysis": {
+    "introduction": "Opening analysis paragraph",
+    "sections": [
+      {
+        "title": "Section Title",
+        "content": "Detailed analysis content",
+        "insights": ["Insight 1", "Insight 2"],
+        "importance": "high|medium|low"
+      }
+    ],
+    "conclusion": "Concluding analysis paragraph"
+  },
+  "metrics": [
+    {
+      "title": "Metric Name",
+      "value": "Display Value",
+      "numericValue": 0,
+      "change": 0,
+      "changeType": "positive|negative|neutral",
+      "icon": "revenue|users|target|calendar|warning|success",
+      "description": "Metric explanation",
+      "category": "financial|operational|strategic|risk"
+    }
+  ],
+  "insights": [
+    {
+      "title": "Insight Title",
+      "description": "Detailed insight description",
+      "impact": "high|medium|low",
+      "category": "opportunity|risk|trend|recommendation",
+      "actionItems": ["Action 1", "Action 2"]
+    }
+  ],
+  "charts": [
+    {
+      "type": "bar|line|pie|area",
+      "title": "Chart Title",
+      "description": "Chart description",
+      "category": "financial|operational|strategic|risk",
+      "data": [
+        {"label": "Label 1", "value": 100, "color": "#3b82f6"},
+        {"label": "Label 2", "value": 200, "color": "#10b981"}
+      ],
+      "xKey": "label",
+      "yKey": "value",
+      "insights": ["Chart insight 1", "Chart insight 2"]
+    }
+  ],
+  "recommendations": [
+    {
+      "title": "Recommendation Title",
+      "description": "Detailed recommendation",
+      "priority": "high|medium|low",
+      "timeframe": "immediate|short_term|long_term",
+      "category": "financial|operational|strategic|risk",
+      "expectedOutcome": "Expected result description"
+    }
+  ],
+  "riskAssessment": {
+    "overallScore": 0,
+    "risks": [
+      {
+        "title": "Risk Title",
+        "description": "Risk description",
+        "probability": 0,
+        "impact": 0,
+        "severity": "critical|high|medium|low",
+        "mitigation": "Mitigation strategy"
+      }
+    ]
+  },
+  "metadata": {
+    "analysisType": "financial|risk|compliance|performance|strategy|general",
+    "confidence": 0,
+    "dataQuality": "high|medium|low",
+    "lastUpdated": "ISO date string",
+    "sources": ["Source 1", "Source 2"]
+  }
+}
+
+RESPONSE GUIDELINES:
+1. ALWAYS return valid JSON in the exact structure above
+2. Provide comprehensive, detailed analysis without artificial length restrictions
+3. Focus on delivering actionable insights and thorough analysis
+4. Use investment terminology and quantify everything possible
+5. Generate realistic, relevant data based on the prompt and documents
+6. Ensure all numeric values are actual numbers, not strings
+7. Fill all required fields - use null/empty arrays if no data available
 
 INVESTOR FOCUS RULES:
 - Lead with financial impact and business implications
@@ -71,23 +162,21 @@ INVESTOR FOCUS RULES:
 - Always consider competitive positioning
 - Emphasize governance and compliance issues
 
-CHART GENERATION:
-When creating charts, always include:
-- Financial performance charts (revenue, profit, growth trends)
-- Risk assessment visualizations
-- Market opportunity charts
-- Operational metrics dashboards
+CHART GENERATION RULES:
+- Generate 2-4 relevant charts based on the analysis type
+- Use realistic data that supports your analysis
+- Include proper chart types for the data being presented
+- Provide meaningful insights for each chart
+- Use appropriate colors and ensure data is properly formatted
 
-Generate charts for financial data, trends, comparisons, or metrics that would be valuable for board/investor presentations.
-
-Remember: You're advising sophisticated investors and board members who need actionable insights, not generic summaries.`
+Remember: You're advising sophisticated investors and board members who need actionable insights in structured, parseable format.`
 
       // Safely handle documents - ensure it's always an array
       const safeDocuments = Array.isArray(documents) ? documents : []
       
       const contextualPrompt = safeDocuments.length > 0 
-        ? `${systemPrompt}\n\nDocument Context: ${safeDocuments.map(doc => `${doc.name}: ${doc.extractedText?.substring(0, 1000) || 'No content extracted'}`).join('\n\n')}\n\nUser Query: ${prompt}`
-        : `${systemPrompt}\n\nNote: No documents uploaded yet. Provide general investment and board governance guidance based on the query.\n\nUser Query: ${prompt}`
+        ? `${systemPrompt}\n\nDocument Context: ${safeDocuments.map(doc => `${doc.name}: ${doc.extractedText?.substring(0, 1000) || 'No content extracted'}`).join('\n\n')}\n\nUser Query: ${prompt}\n\nIMPORTANT: Return ONLY valid JSON in the specified structure. No additional text or formatting.`
+        : `${systemPrompt}\n\nNote: No documents uploaded yet. Provide general investment and board governance guidance based on the query in the JSON format.\n\nUser Query: ${prompt}\n\nIMPORTANT: Return ONLY valid JSON in the specified structure. No additional text or formatting.`
 
       console.log('Gemini: Getting model...')
       console.log('Gemini: Generating content...')
@@ -124,8 +213,8 @@ Remember: You're advising sophisticated investors and board members who need act
       
       console.log('Gemini: Success! Response length:', text.length)
 
-      // Parse for structured data and charts
-      return this.parseStructuredResponse(text, prompt, safeDocuments.length > 0)
+      // Parse JSON response and convert to AIResponse format
+      return this.parseJSONResponse(text, prompt, safeDocuments.length > 0)
     } catch (error: any) {
       console.error('Gemini API detailed error:', {
         message: error.message,
@@ -941,63 +1030,328 @@ Remember: You're advising sophisticated investors and board members who need act
     
     // Only generate charts and summary for specific agent actions, not @agent mentions
     const isSpecificAgentAction = prompt.includes('Agent Action:')
-    const shouldGenerateCharts = isSpecificAgentAction && this.shouldGenerateCharts(prompt)
-    const charts = shouldGenerateCharts ? this.generateDataDrivenCharts(prompt, hasDocuments) : []
-    const summary = isSpecificAgentAction ? this.generateInvestorSummary(prompt, hasDocuments) : undefined
     
-    let fallbackText = ""
-    
-    // Provide contextual fallback responses based on query type
-    if (prompt.toLowerCase().includes('risk')) {
-      fallbackText = `**Risk Assessment Analysis**
-
-Based on the query about risk assessment, here are key considerations:
-
-**Executive Brief:**
-Risk management is critical for board oversight and investor confidence. A comprehensive risk assessment should evaluate market, operational, financial, and regulatory risks.
-
-**Key Risk Categories:**
-• **Market Risk**: Competition, economic conditions, customer concentration
-• **Operational Risk**: Key personnel, technology dependencies, supply chain
-• **Financial Risk**: Cash flow, debt levels, funding requirements`
-    } else if (prompt.toLowerCase().includes('strategic')) {
-      fallbackText = `**Strategic Analysis Overview**
-
-**Executive Brief:**
-Strategic planning requires comprehensive market analysis, competitive positioning assessment, and growth opportunity evaluation.
-
-**Key Strategic Areas:**
-• **Market Position**: Current market share and competitive advantages
-• **Growth Opportunities**: New markets, products, or partnerships
-• **Resource Allocation**: Investment priorities and capital deployment`
-    } else if (prompt.includes('@Agent Request:')) {
-      fallbackText = `I'm here to help with your analysis. Based on your request, I can provide insights on business strategy, financial analysis, risk assessment, and operational planning.
-
-**What I can help with:**
-• Document analysis and summarization
-• Financial performance insights
-• Risk identification and mitigation
-• Strategic planning support
-• Board governance guidance
-
-Please feel free to ask specific questions about your documents or business objectives.`
-    } else {
-      fallbackText = `**Analysis Summary**
-
-**Executive Brief:**
-Based on your query, here's a high-level analysis with key insights and recommendations.
-
-**Key Insights:**
-• Data-driven decision making is essential for board governance
-• Regular performance monitoring enables proactive management
-• Stakeholder communication builds investor confidence
-• Risk management protects long-term value creation`
+    // Create structured JSON fallback data
+    const fallbackJSON = {
+      executiveSummary: {
+        title: this.getFallbackTitle(prompt),
+        overview: "I'm currently experiencing connectivity issues but can provide general guidance based on your request.",
+        keyPoints: [
+          "AI analysis system is available for document review",
+          "Multiple analysis frameworks are supported",
+          "Real-time insights and recommendations provided"
+        ],
+        riskLevel: "low" as const,
+        actionRequired: false
+      },
+      analysis: {
+        introduction: this.getFallbackAnalysisIntro(prompt),
+        sections: [
+          {
+            title: "Current Capabilities",
+            content: "The AI system can analyze financial documents, assess risks, review compliance requirements, and provide strategic insights. Upload documents to begin comprehensive analysis.",
+            insights: [
+              "Document analysis provides deeper insights",
+              "Multiple analysis types available",
+              "Real-time processing and visualization"
+            ],
+            importance: "high" as const
+          }
+        ],
+        conclusion: "Please try again or upload documents for detailed analysis."
+      },
+      metrics: isSpecificAgentAction ? this.getFallbackMetrics(prompt, hasDocuments) : [],
+      insights: [
+        {
+          title: "System Status",
+          description: "AI analysis engine is operational and ready to process your requests",
+          impact: "medium" as const,
+          category: "recommendation" as const,
+          actionItems: ["Upload documents for analysis", "Try specific analysis requests"]
+        }
+      ],
+      charts: isSpecificAgentAction ? this.getFallbackCharts(prompt, hasDocuments) : [],
+      recommendations: [
+        {
+          title: "Upload Documentation",
+          description: "Upload board documents, financial reports, or other materials for comprehensive AI analysis",
+          priority: "high" as const,
+          timeframe: "immediate" as const,
+          category: "operational" as const,
+          expectedOutcome: "Detailed insights and visualizations based on your specific data"
+        }
+      ],
+      riskAssessment: {
+        overallScore: 3,
+        risks: [
+          {
+            title: "Limited Data Availability",
+            description: "Analysis depth is limited without document upload",
+            probability: 8,
+            impact: 4,
+            severity: "medium" as const,
+            mitigation: "Upload relevant documents for comprehensive analysis"
+          }
+        ]
+      },
+      metadata: {
+        analysisType: this.getAnalysisTypeFromPrompt(prompt),
+        confidence: 70,
+        dataQuality: hasDocuments ? "medium" as const : "low" as const,
+        lastUpdated: new Date().toISOString(),
+        sources: hasDocuments ? ["Uploaded Documents"] : ["General Knowledge Base"]
+      }
     }
     
-    return {
-      response: fallbackText,
-      charts,
-      summary
+    return this.convertJSONToAIResponse(fallbackJSON, prompt, hasDocuments)
+  }
+
+  private getFallbackTitle(prompt: string): string {
+    if (prompt.toLowerCase().includes('risk')) return 'Risk Assessment Analysis'
+    if (prompt.toLowerCase().includes('financial')) return 'Financial Analysis Overview'
+    if (prompt.toLowerCase().includes('strategic')) return 'Strategic Analysis Summary'
+    if (prompt.toLowerCase().includes('compliance')) return 'Compliance Review'
+    if (prompt.toLowerCase().includes('performance')) return 'Performance Analysis'
+    return 'Analysis Summary'
+  }
+
+  private getFallbackAnalysisIntro(prompt: string): string {
+    if (prompt.toLowerCase().includes('risk')) {
+      return 'Risk management is critical for board oversight and investor confidence. A comprehensive risk assessment should evaluate market, operational, financial, and regulatory risks.'
+    }
+    if (prompt.toLowerCase().includes('strategic')) {
+      return 'Strategic planning requires comprehensive market analysis, competitive positioning assessment, and growth opportunity evaluation.'
+    }
+    if (prompt.toLowerCase().includes('financial')) {
+      return 'Financial analysis focuses on revenue trends, profitability metrics, cash flow analysis, and key performance indicators critical for board decision-making.'
+    }
+    return 'Based on your request, here is a structured analysis with key insights and recommendations for board consideration.'
+  }
+
+  private getFallbackMetrics(prompt: string, hasDocuments: boolean): any[] {
+    if (!hasDocuments) {
+      return [
+        {
+          title: 'Documents',
+          value: '0',
+          numericValue: 0,
+          change: 0,
+          changeType: 'neutral',
+          icon: 'warning',
+          description: 'Upload documents to begin analysis',
+          category: 'operational'
+        },
+        {
+          title: 'AI Status',
+          value: 'Active',
+          numericValue: 100,
+          change: 0,
+          changeType: 'positive',
+          icon: 'success',
+          description: 'AI analysis engine online',
+          category: 'operational'
+        }
+      ]
+    }
+
+    // Default metrics for when we have documents
+    return [
+      {
+        title: 'Analysis Ready',
+        value: 'Yes',
+        numericValue: 100,
+        change: 0,
+        changeType: 'positive',
+        icon: 'success',
+        description: 'System ready for analysis',
+        category: 'operational'
+      },
+      {
+        title: 'Data Quality',
+        value: 'Good',
+        numericValue: 75,
+        change: 0,
+        changeType: 'positive',
+        icon: 'target',
+        description: 'Document data quality assessment',
+        category: 'operational'
+      }
+    ]
+  }
+
+  private getFallbackCharts(prompt: string, hasDocuments: boolean): any[] {
+    if (!hasDocuments) {
+      return [{
+        type: 'bar',
+        title: 'Getting Started',
+        description: 'Upload documents to generate data-driven charts',
+        category: 'operational',
+        data: [
+          { label: 'Upload', value: 0, color: '#3b82f6' },
+          { label: 'Analyze', value: 0, color: '#10b981' },
+          { label: 'Visualize', value: 0, color: '#f59e0b' }
+        ],
+        xKey: 'label',
+        yKey: 'value',
+        insights: ['Upload documents to begin', 'AI will generate relevant charts', 'Interactive visualizations available']
+      }]
+    }
+
+    return [{
+      type: 'bar',
+      title: 'System Status',
+      description: 'Current system capabilities and readiness',
+      category: 'operational',
+      data: [
+        { label: 'Analysis Engine', value: 100, color: '#10b981' },
+        { label: 'Data Processing', value: 95, color: '#3b82f6' },
+        { label: 'Visualization', value: 100, color: '#f59e0b' }
+      ],
+      xKey: 'label',
+      yKey: 'value',
+      insights: ['All systems operational', 'Ready for document analysis', 'Full visualization support available']
+    }]
+  }
+
+  private getAnalysisTypeFromPrompt(prompt: string): string {
+    if (prompt.toLowerCase().includes('financial')) return 'financial'
+    if (prompt.toLowerCase().includes('risk')) return 'risk'
+    if (prompt.toLowerCase().includes('compliance')) return 'compliance'
+    if (prompt.toLowerCase().includes('performance')) return 'performance'
+    if (prompt.toLowerCase().includes('strategic')) return 'strategy'
+    return 'general'
+  }
+
+  private parseJSONResponse(text: string, originalPrompt: string, hasDocuments: boolean): AIResponse {
+    try {
+      // Clean the response to extract JSON
+      let jsonText = text.trim()
+      
+      // Remove any markdown code blocks or extra formatting
+      if (jsonText.startsWith('```json')) {
+        jsonText = jsonText.replace(/^```json\s*/, '').replace(/\s*```$/, '')
+      } else if (jsonText.startsWith('```')) {
+        jsonText = jsonText.replace(/^```\s*/, '').replace(/\s*```$/, '')
+      }
+      
+      // Try to find JSON object in the response
+      const jsonStart = jsonText.indexOf('{')
+      const jsonEnd = jsonText.lastIndexOf('}')
+      
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        jsonText = jsonText.substring(jsonStart, jsonEnd + 1)
+      }
+      
+      // Parse the JSON response
+      const jsonResponse = JSON.parse(jsonText)
+      
+      // Convert to AIResponse format
+      return this.convertJSONToAIResponse(jsonResponse, originalPrompt, hasDocuments)
+      
+    } catch (error) {
+      console.error('Failed to parse JSON response:', error)
+      console.log('Raw response:', text.substring(0, 500))
+      
+      // Fallback to legacy parsing for non-JSON responses
+      return this.parseStructuredResponse(text, originalPrompt, hasDocuments)
+    }
+  }
+
+  private convertJSONToAIResponse(jsonData: any, originalPrompt: string, hasDocuments: boolean): AIResponse {
+    try {
+      // Build response text from JSON structure
+      let responseText = ''
+      
+      // Executive Summary
+      if (jsonData.executiveSummary) {
+        responseText += `# ${jsonData.executiveSummary.title || 'Executive Summary'}\n\n`
+        responseText += `${jsonData.executiveSummary.overview || ''}\n\n`
+        
+        if (jsonData.executiveSummary.keyPoints?.length > 0) {
+          responseText += `**Key Points:**\n`
+          jsonData.executiveSummary.keyPoints.forEach((point: string) => {
+            responseText += `• ${point}\n`
+          })
+          responseText += '\n'
+        }
+      }
+      
+      // Analysis sections
+      if (jsonData.analysis) {
+        if (jsonData.analysis.introduction) {
+          responseText += `## Analysis Overview\n\n${jsonData.analysis.introduction}\n\n`
+        }
+        
+        if (jsonData.analysis.sections?.length > 0) {
+          jsonData.analysis.sections.forEach((section: any) => {
+            responseText += `### ${section.title}\n\n${section.content}\n\n`
+            if (section.insights?.length > 0) {
+              responseText += `**Key Insights:**\n`
+              section.insights.forEach((insight: string) => {
+                responseText += `• ${insight}\n`
+              })
+              responseText += '\n'
+            }
+          })
+        }
+        
+        if (jsonData.analysis.conclusion) {
+          responseText += `## Conclusion\n\n${jsonData.analysis.conclusion}\n\n`
+        }
+      }
+      
+      // Recommendations
+      if (jsonData.recommendations?.length > 0) {
+        responseText += `## Recommendations\n\n`
+        jsonData.recommendations.forEach((rec: any, index: number) => {
+          responseText += `**${index + 1}. ${rec.title}** (${rec.priority} priority)\n`
+          responseText += `${rec.description}\n\n`
+        })
+      }
+      
+      // Convert metrics to summary format
+      const summary = jsonData.metrics?.length > 0 ? {
+        title: jsonData.executiveSummary?.title || 'Analysis Summary',
+        metrics: jsonData.metrics.map((metric: any) => ({
+          title: metric.title,
+          value: metric.value,
+          change: metric.change || 0,
+          changeType: metric.changeType || 'neutral',
+          icon: metric.icon || 'target',
+          description: metric.description
+        })),
+        insights: jsonData.insights?.map((insight: any) => insight.description || insight.title) || []
+      } : undefined
+      
+      // Convert charts format
+      const charts = jsonData.charts?.map((chart: any) => ({
+        type: chart.type,
+        title: chart.title,
+        description: chart.description,
+        data: chart.data || [],
+        xKey: chart.xKey || 'label',
+        yKey: chart.yKey || 'value'
+      })) || []
+      
+      return {
+        response: responseText.trim(),
+        charts: charts.length > 0 ? charts : undefined,
+        summary
+      }
+      
+    } catch (error) {
+      console.error('Failed to convert JSON to AIResponse:', error)
+      
+      // Return minimal response with original JSON data
+      return {
+        response: JSON.stringify(jsonData, null, 2),
+        charts: jsonData.charts || undefined,
+        summary: jsonData.metrics?.length > 0 ? {
+          title: 'Analysis Results',
+          metrics: jsonData.metrics || [],
+          insights: jsonData.insights?.map((i: any) => i.description || i.title) || []
+        } : undefined
+      }
     }
   }
 }

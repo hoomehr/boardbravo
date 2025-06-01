@@ -90,6 +90,8 @@ export interface SavedNote {
   updatedAt: Date
   isPinned: boolean
   tags: string[]
+  charts?: any[] // Store chart data from AI responses
+  summary?: any // Store summary metrics from AI responses
 }
 
 export interface AgentAction {
@@ -105,4 +107,103 @@ export interface AgentAction {
   iconColor: string
   tagColor: string
   tag: string
+}
+
+// Enhanced AI Response Structures for JSON Template
+export interface AIExecutiveSummary {
+  title: string
+  overview: string
+  keyPoints: string[]
+  riskLevel: 'low' | 'medium' | 'high'
+  actionRequired: boolean
+}
+
+export interface AIAnalysisSection {
+  title: string
+  content: string
+  insights: string[]
+  importance: 'high' | 'medium' | 'low'
+}
+
+export interface AIAnalysis {
+  introduction: string
+  sections: AIAnalysisSection[]
+  conclusion: string
+}
+
+export interface AIMetric {
+  title: string
+  value: string
+  numericValue: number
+  change: number
+  changeType: 'positive' | 'negative' | 'neutral'
+  icon: 'revenue' | 'users' | 'target' | 'calendar' | 'warning' | 'success'
+  description: string
+  category: 'financial' | 'operational' | 'strategic' | 'risk'
+}
+
+export interface AIInsight {
+  title: string
+  description: string
+  impact: 'high' | 'medium' | 'low'
+  category: 'opportunity' | 'risk' | 'trend' | 'recommendation'
+  actionItems: string[]
+}
+
+export interface AIChart {
+  type: 'bar' | 'line' | 'pie' | 'area'
+  title: string
+  description: string
+  category: 'financial' | 'operational' | 'strategic' | 'risk'
+  data: Array<{
+    label: string
+    value: number
+    color?: string
+    [key: string]: any
+  }>
+  xKey: string
+  yKey: string
+  insights: string[]
+}
+
+export interface AIRecommendation {
+  title: string
+  description: string
+  priority: 'high' | 'medium' | 'low'
+  timeframe: 'immediate' | 'short_term' | 'long_term'
+  category: 'financial' | 'operational' | 'strategic' | 'risk'
+  expectedOutcome: string
+}
+
+export interface AIRisk {
+  title: string
+  description: string
+  probability: number
+  impact: number
+  severity: 'critical' | 'high' | 'medium' | 'low'
+  mitigation: string
+}
+
+export interface AIRiskAssessment {
+  overallScore: number
+  risks: AIRisk[]
+}
+
+export interface AIMetadata {
+  analysisType: 'financial' | 'risk' | 'compliance' | 'performance' | 'strategy' | 'general'
+  confidence: number
+  dataQuality: 'high' | 'medium' | 'low'
+  lastUpdated: string
+  sources: string[]
+}
+
+export interface StructuredAIResponse {
+  executiveSummary: AIExecutiveSummary
+  analysis: AIAnalysis
+  metrics: AIMetric[]
+  insights: AIInsight[]
+  charts: AIChart[]
+  recommendations: AIRecommendation[]
+  riskAssessment: AIRiskAssessment
+  metadata: AIMetadata
 } 
