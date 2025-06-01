@@ -725,35 +725,58 @@ export default function DashboardPage() {
     }
   }
 
-  // Helper function to save agent results as notes
-  const saveAgentResultAsNote = async (actionTitle: string, content: string, category: SavedNote['category']) => {
-    await saveNote({
-      title: `${actionTitle} - ${format(new Date(), 'MMM dd, yyyy')}`,
-      content: content,
-      category: category,
-      source: `Agent: ${actionTitle}`,
-      isPinned: false,
-      tags: ['agent-generated']
-    })
-  }
-
   // Function to save chat messages as notes
   const saveMessageAsNote = async (messageContent: string, messageType: 'user' | 'assistant') => {
+    // Helper function to detect action type from message content
+    const getActionCategoryFromContent = (content: string): 'financial' | 'risk' | 'compliance' | 'performance' | 'strategy' | 'general' => {
+      const agentActions = getAgentActions()
+      
+      // Check if this is an agent action message
+      if (content.includes('🤖 Agent Action:')) {
+        for (const action of agentActions) {
+          if (content.includes(action.title)) {
+            return action.id as 'financial' | 'risk' | 'compliance' | 'performance' | 'strategy'
+          }
+        }
+      }
+      
+      // Check if this is a response to an agent action (assistant message following agent action)
+      const messageIndex = chatMessages.findIndex(m => m.content === content)
+      if (messageIndex > 0 && messageType === 'assistant') {
+        const previousMessage = chatMessages[messageIndex - 1]
+        if (previousMessage.content.includes('🤖 Agent Action:')) {
+          for (const action of agentActions) {
+            if (previousMessage.content.includes(action.title)) {
+              return action.id as 'financial' | 'risk' | 'compliance' | 'performance' | 'strategy'
+            }
+          }
+        }
+      }
+      
+      return 'general'
+    }
+
+    const actionCategory = getActionCategoryFromContent(messageContent)
+    const agentActions = getAgentActions()
+    const actionInfo = agentActions.find((a: AgentAction) => a.id === actionCategory)
+    
     const title = messageType === 'user' 
-      ? `Board Message - ${format(new Date(), 'MMM dd, HH:mm')}`
-      : `AI Response - ${format(new Date(), 'MMM dd, HH:mm')}`
+      ? (actionCategory !== 'general' ? `${actionInfo?.tag} Action - ${format(new Date(), 'MMM dd, HH:mm')}` : `Board Message - ${format(new Date(), 'MMM dd, HH:mm')}`)
+      : (actionCategory !== 'general' ? `${actionInfo?.tag} Analysis - ${format(new Date(), 'MMM dd, HH:mm')}` : `AI Response - ${format(new Date(), 'MMM dd, HH:mm')}`)
     
     const source = messageType === 'user' 
-      ? `Message from ${currentUser.name}`
-      : 'BoardBravo AI Assistant'
+      ? (actionCategory !== 'general' ? `Agent Action by ${currentUser.name}` : `Message from ${currentUser.name}`)
+      : (actionCategory !== 'general' ? `BoardBravo AI - ${actionInfo?.tag} Analysis` : 'BoardBravo AI Assistant')
     
     await saveNote({
       title: title,
       content: messageContent,
-      category: 'general',
+      category: actionCategory,
       source: source,
       isPinned: false,
-      tags: messageType === 'user' ? ['user-message'] : ['ai-response']
+      tags: messageType === 'user' 
+        ? (actionCategory !== 'general' ? ['agent-action', actionCategory] : ['user-message'])
+        : (actionCategory !== 'general' ? ['ai-analysis', actionCategory] : ['ai-response'])
     })
   }
 
@@ -846,15 +869,6 @@ export default function DashboardPage() {
         
         // Save to backend
         saveChatSessionsToBackend(updatedSessions)
-        
-        // Auto-save agent result as note
-        const category = actionTitle.toLowerCase().includes('financial') ? 'financial' :
-                        actionTitle.toLowerCase().includes('risk') ? 'risk' :
-                        actionTitle.toLowerCase().includes('compliance') ? 'compliance' :
-                        actionTitle.toLowerCase().includes('performance') ? 'performance' :
-                        actionTitle.toLowerCase().includes('strategy') ? 'strategy' : 'general'
-        
-        await saveAgentResultAsNote(actionTitle, data.response, category)
         
         console.log('Agent action completed:', actionTitle)
       } else {

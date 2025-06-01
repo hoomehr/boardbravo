@@ -213,6 +213,50 @@ export default function ChatInterfaceCard({
     }
   }, [isClient])
 
+  // Helper function to detect action type from message content
+  const getActionTypeFromContent = (content: string): {type: string, colors: {bg: string, text: string, border: string}} => {
+    const agentActions = getAgentActions()
+    
+    // Check if this is an agent action message
+    if (content.includes('🤖 Agent Action:')) {
+      for (const action of agentActions) {
+        if (content.includes(action.title)) {
+          const colorMap: {[key: string]: {bg: string, text: string, border: string}} = {
+            'financial': { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' },
+            'risk': { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200' },
+            'compliance': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' },
+            'performance': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' },
+            'strategy': { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' }
+          }
+          return { type: action.id, colors: colorMap[action.id] || colorMap['financial'] }
+        }
+      }
+    }
+    
+    // Check if this is a response to an agent action (assistant message following agent action)
+    const messageIndex = chatMessages.findIndex(m => m.content === content)
+    if (messageIndex > 0) {
+      const previousMessage = chatMessages[messageIndex - 1]
+      if (previousMessage.content.includes('🤖 Agent Action:')) {
+        for (const action of agentActions) {
+          if (previousMessage.content.includes(action.title)) {
+            const colorMap: {[key: string]: {bg: string, text: string, border: string}} = {
+              'financial': { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' },
+              'risk': { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200' },
+              'compliance': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' },
+              'performance': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' },
+              'strategy': { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' }
+            }
+            return { type: action.id, colors: colorMap[action.id] || colorMap['financial'] }
+          }
+        }
+      }
+    }
+    
+    // Default to green for regular saves
+    return { type: 'general', colors: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' } }
+  }
+
   // Handle saving message as note
   const handleSaveMessageAsNote = async (messageId: string, content: string, type: 'user' | 'assistant') => {
     // Prevent saving if already saved
@@ -391,25 +435,30 @@ export default function ChatInterfaceCard({
                 
                 {/* Save to Notes Button - Outside message bubble */}
                 <div className={`flex ${message.type === 'user' ? 'justify-start' : 'justify-end'} mt-2`}>
-                  <button
-                    onClick={() => handleSaveMessageAsNote(message.id, message.content, message.type)}
-                    disabled={savedMessages.has(message.id)}
-                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors duration-200 ${
-                      savedMessages.has(message.id)
-                        ? 'bg-green-100 text-green-700 cursor-default border border-green-200'
-                        : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 border border-gray-200'
-                    } shadow-sm`}
-                    title={savedMessages.has(message.id) ? "Already saved to notes" : "Save as note"}
-                  >
-                    {savedMessages.has(message.id) ? (
-                      <BookmarkCheck className="w-4 h-4" />
-                    ) : (
-                      <Bookmark className="w-4 h-4" />
-                    )}
-                    <span className="text-xs font-medium">
-                      {savedMessages.has(message.id) ? "Saved" : "Save to notes"}
-                    </span>
-                  </button>
+                  {(() => {
+                    const actionInfo = getActionTypeFromContent(message.content)
+                    return (
+                      <button
+                        onClick={() => handleSaveMessageAsNote(message.id, message.content, message.type)}
+                        disabled={savedMessages.has(message.id)}
+                        className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors duration-200 ${
+                          savedMessages.has(message.id)
+                            ? `${actionInfo.colors.bg} ${actionInfo.colors.text} cursor-default ${actionInfo.colors.border}`
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 border border-gray-200'
+                        } shadow-sm`}
+                        title={savedMessages.has(message.id) ? "Already saved to notes" : "Save as note"}
+                      >
+                        {savedMessages.has(message.id) ? (
+                          <BookmarkCheck className="w-4 h-4" />
+                        ) : (
+                          <Bookmark className="w-4 h-4" />
+                        )}
+                        <span className="text-xs font-medium">
+                          {savedMessages.has(message.id) ? "Saved" : "Save to notes"}
+                        </span>
+                      </button>
+                    )
+                  })()}
                 </div>
               </div>
               
@@ -417,9 +466,12 @@ export default function ChatInterfaceCard({
                 message.type === 'user' ? 'text-right' : 'text-left'
               }`}>
                 {format(message.timestamp, 'HH:mm')}
-                {savedMessages.has(message.id) && (
-                  <span className="ml-2 text-green-600 font-medium">✓ Saved to notes</span>
-                )}
+                {savedMessages.has(message.id) && (() => {
+                  const actionInfo = getActionTypeFromContent(message.content)
+                  return (
+                    <span className={`ml-2 ${actionInfo.colors.text} font-medium`}>✓ Saved to notes</span>
+                  )
+                })()}
               </div>
             </div>
           </div>
