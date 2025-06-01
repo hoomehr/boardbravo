@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useRef, FormEvent, useEffect, useState } from 'react'
-import { Plus, Users, User, Bot, Send, Loader2, TrendingUp, TrendingDown, Brain, Sparkles, Bookmark, BookmarkCheck } from 'lucide-react'
+import { Plus, Users, User, Bot, Send, Loader2, TrendingUp, TrendingDown, Brain, Sparkles, Bookmark, BookmarkCheck, Maximize2, X } from 'lucide-react'
 import { format } from 'date-fns'
 import ReactMarkdown from 'react-markdown'
 import ChartRenderer from '@/components/charts/ChartRenderer'
@@ -92,6 +92,171 @@ const ProcessingAnimation = ({ actionTitle }: { actionTitle?: string }) => {
   )
 }
 
+// Modal component for full AI response
+const MessageModal = ({ message, isOpen, onClose }: { message: ChatMessage | null, isOpen: boolean, onClose: () => void }) => {
+  if (!isOpen || !message) return null
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl">
+        {/* Enhanced Modal Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+              <Bot className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-gray-900">Complete AI Analysis</h3>
+              <p className="text-sm text-gray-600">{format(message.timestamp, 'MMMM dd, yyyy • HH:mm')}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-white rounded-lg"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Scrollable Modal Content */}
+        <div className="overflow-y-auto" style={{ maxHeight: 'calc(95vh - 100px)' }}>
+          <div className="p-8 space-y-8">
+            {/* Full Text Response with Enhanced Typography */}
+            {message.content && (
+              <div className="bg-white">
+                <div className="prose prose-lg max-w-none text-gray-800 leading-relaxed">
+                  <ReactMarkdown 
+                    components={{
+                      h1: ({node, ...props}) => <h1 className="text-3xl font-bold text-gray-900 mb-6 pb-3 border-b border-gray-200" {...props} />,
+                      h2: ({node, ...props}) => <h2 className="text-2xl font-semibold text-gray-900 mt-8 mb-4" {...props} />,
+                      h3: ({node, ...props}) => <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3" {...props} />,
+                      p: ({node, ...props}) => <p className="text-gray-700 mb-4 leading-relaxed" {...props} />,
+                      ul: ({node, ...props}) => <ul className="space-y-2 mb-4" {...props} />,
+                      li: ({node, ...props}) => <li className="flex items-start space-x-2 text-gray-700"><span className="text-blue-600 mt-2">•</span><span {...props} /></li>,
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            )}
+            
+            {/* Enhanced Summary Stats Section */}
+            {message.summary && (
+              <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl p-8 border border-gray-200">
+                <div className="flex items-center space-x-3 mb-6">
+                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+                    <span className="text-xl">📊</span>
+                  </div>
+                  <h4 className="text-2xl font-bold text-gray-900">{message.summary.title}</h4>
+                </div>
+                
+                {/* Enhanced 3x2 Grid of All Metrics */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                  {message.summary.metrics && message.summary.metrics.map((metric: any, idx: number) => {
+                    const getIcon = (iconType: string) => {
+                      switch(iconType) {
+                        case 'revenue': return '💰'
+                        case 'users': return '👥'
+                        case 'target': return '🎯'
+                        case 'calendar': return '📅'
+                        case 'warning': return '⚠️'
+                        case 'success': return '✅'
+                        default: return '📊'
+                      }
+                    }
+                    
+                    const getChangeColor = (changeType: string) => {
+                      switch(changeType) {
+                        case 'positive': return 'text-green-600'
+                        case 'negative': return 'text-red-600'
+                        default: return 'text-gray-600'
+                      }
+                    }
+                    
+                    return (
+                      <div key={idx} className="bg-white rounded-xl p-6 text-center border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="text-4xl mb-3">{getIcon(metric.icon)}</div>
+                        <div className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide">{metric.title}</div>
+                        <div className="text-3xl font-bold text-gray-900 mb-3">{metric.value}</div>
+                        {metric.change !== undefined && metric.change !== 0 && (
+                          <div className={`text-sm font-semibold ${getChangeColor(metric.changeType)} flex items-center justify-center space-x-2`}>
+                            {metric.changeType === 'positive' ? (
+                              <TrendingUp className="w-5 h-5" />
+                            ) : metric.changeType === 'negative' ? (
+                              <TrendingDown className="w-5 h-5" />
+                            ) : null}
+                            <span>{metric.change > 0 ? '+' : ''}{metric.change}%</span>
+                          </div>
+                        )}
+                        {metric.description && (
+                          <p className="text-xs text-gray-500 mt-3 leading-relaxed">{metric.description}</p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+                
+                {/* Enhanced Insights */}
+                {message.summary.insights && (
+                  <div className="bg-white rounded-xl p-6 border border-gray-200">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                        <span className="text-lg">🔍</span>
+                      </div>
+                      <h5 className="text-lg font-bold text-gray-900">Key Insights</h5>
+                    </div>
+                    <div className="space-y-3">
+                      {message.summary.insights.map((insight: string, idx: number) => (
+                        <div key={idx} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                          <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <span className="text-white text-xs font-bold">{idx + 1}</span>
+                          </div>
+                          <p className="text-gray-700 leading-relaxed">{insight}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Enhanced Charts Section */}
+            {message.charts && message.charts.length > 0 && (
+              <div className="bg-white rounded-2xl p-8 border border-gray-200">
+                <div className="flex items-center space-x-3 mb-8">
+                  <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center">
+                    <span className="text-xl">📈</span>
+                  </div>
+                  <h4 className="text-2xl font-bold text-gray-900">Data Visualizations</h4>
+                  <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold">
+                    {message.charts.length} {message.charts.length === 1 ? 'Chart' : 'Charts'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {message.charts.map((chart, index) => (
+                    <div key={index} className="bg-gray-50 rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+                      <div className="mb-4">
+                        <h5 className="text-lg font-semibold text-gray-900 mb-2">{chart.title}</h5>
+                        {chart.description && (
+                          <p className="text-sm text-gray-600">{chart.description}</p>
+                        )}
+                      </div>
+                      <div style={{ height: '350px' }}>
+                        <ChartRenderer chartData={chart} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ChatInterfaceCard({
   chatMessages,
   currentMessage,
@@ -114,6 +279,8 @@ export default function ChatInterfaceCard({
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [savedMessages, setSavedMessages] = useState<Set<string>>(new Set())
+  const [modalMessage, setModalMessage] = useState<ChatMessage | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   // Load saved message IDs from localStorage on mount
   useEffect(() => {
@@ -202,16 +369,25 @@ export default function ChatInterfaceCard({
     return () => clearTimeout(timer)
   }, [])
 
-  // Scroll to bottom when client-side hydration completes
-  useEffect(() => {
-    if (isClient && chatMessages.length > 0) {
-      const timer = setTimeout(() => {
-        scrollToBottom('instant')
-      }, 150)
-      
-      return () => clearTimeout(timer)
-    }
-  }, [isClient])
+  // Handle modal functions
+  const openModal = (message: ChatMessage) => {
+    setModalMessage(message)
+    setIsModalOpen(true)
+  }
+
+  const closeModal = () => {
+    setIsModalOpen(false)
+    setModalMessage(null)
+  }
+
+  // Helper function to determine if content should be truncated
+  const shouldTruncateContent = (content: string) => {
+    return content.length > 300 // Truncate AI responses longer than 300 characters
+  }
+
+  const getTruncatedContent = (content: string) => {
+    return content.length > 300 ? content.substring(0, 300) + '...' : content
+  }
 
   // Helper function to detect action type from message content
   const getActionTypeFromContent = (content: string): {type: string, colors: {bg: string, text: string, border: string}} => {
@@ -400,26 +576,44 @@ export default function ChatInterfaceCard({
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-900'
                 } shadow-sm`}>
-                  {/* Text Response - First 1000 characters */}
+                  {/* Text Response - Fixed size with expand option for AI messages */}
                   {message.content && (
                     <div className="text-xs whitespace-pre-wrap leading-relaxed">
-                      <ReactMarkdown>
-                        {message.content.length > 1000 
-                          ? message.content.substring(0, 1000) + '...'
-                          : message.content
-                        }
-                      </ReactMarkdown>
+                      {message.type === 'assistant' && shouldTruncateContent(message.content) ? (
+                        <div>
+                          <ReactMarkdown>
+                            {getTruncatedContent(message.content)}
+                          </ReactMarkdown>
+                          <button
+                            onClick={() => openModal(message)}
+                            className="inline-flex items-center space-x-1 mt-2 px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs rounded-md transition-colors"
+                          >
+                            <Maximize2 className="w-3 h-3" />
+                            <span>View Full Response</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <ReactMarkdown>{message.content}</ReactMarkdown>
+                      )}
                     </div>
                   )}
                   
-                  {/* Summary Stats Section - 3x2 Grid */}
+                  {/* Summary Stats Section - 2x1 Grid (Preview Only) */}
                   {message.summary && (
                     <div className="mt-3 pt-3 border-t border-gray-200">
-                      <h4 className="text-xs font-semibold text-gray-700 mb-2">📊 {message.summary.title}</h4>
-                      <div className="bg-white rounded-lg p-3 border border-gray-200">
-                        {/* 3x2 Grid of Metrics */}
-                        <div className="grid grid-cols-3 gap-2 mb-3">
-                          {message.summary.metrics && message.summary.metrics.slice(0, 6).map((metric: any, idx: number) => {
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-xs font-semibold text-gray-700">📊 {message.summary.title}</h4>
+                        <button
+                          onClick={() => openModal(message)}
+                          className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          View All
+                        </button>
+                      </div>
+                      <div className="bg-white rounded-lg p-2 border border-gray-200">
+                        {/* 2x1 Grid - Only first 2 metrics as preview */}
+                        <div className="grid grid-cols-2 gap-2">
+                          {message.summary.metrics && message.summary.metrics.slice(0, 2).map((metric: any, idx: number) => {
                             const getIcon = (iconType: string) => {
                               switch(iconType) {
                                 case 'revenue': return '💰'
@@ -441,16 +635,16 @@ export default function ChatInterfaceCard({
                             }
                             
                             return (
-                              <div key={idx} className="bg-gray-50 rounded-lg p-2 text-center">
-                                <div className="text-lg mb-1">{getIcon(metric.icon)}</div>
-                                <div className="text-xs font-semibold text-gray-900 mb-1">{metric.title}</div>
+                              <div key={idx} className="bg-gray-50 rounded-md p-2 text-center">
+                                <div className="text-sm mb-1">{getIcon(metric.icon)}</div>
+                                <div className="text-xs font-semibold text-gray-900 mb-1 truncate">{metric.title}</div>
                                 <div className="text-sm font-bold text-gray-900">{metric.value}</div>
                                 {metric.change !== undefined && metric.change !== 0 && (
                                   <div className={`text-xs ${getChangeColor(metric.changeType)} flex items-center justify-center space-x-1`}>
                                     {metric.changeType === 'positive' ? (
-                                      <TrendingUp className="w-3 h-3" />
+                                      <TrendingUp className="w-2 h-2" />
                                     ) : metric.changeType === 'negative' ? (
-                                      <TrendingDown className="w-3 h-3" />
+                                      <TrendingDown className="w-2 h-2" />
                                     ) : null}
                                     <span>{metric.change > 0 ? '+' : ''}{metric.change}%</span>
                                   </div>
@@ -460,34 +654,25 @@ export default function ChatInterfaceCard({
                           })}
                         </div>
                         
-                        {/* Insights */}
-                        {message.summary.insights && (
-                          <div className="text-xs text-gray-700">
-                            <div className="font-semibold mb-2">🔍 Key Insights:</div>
-                            <ul className="space-y-1">
-                              {message.summary.insights.map((insight: string, idx: number) => (
-                                <li key={idx} className="flex items-start space-x-1">
-                                  <span className="text-blue-600 mt-0.5">•</span>
-                                  <span>{insight}</span>
-                                </li>
-                              ))}
-                            </ul>
+                        {/* Compact insights preview */}
+                        {message.summary.insights && message.summary.insights.length > 0 && (
+                          <div className="mt-2 text-xs text-gray-600">
+                            <div className="font-medium mb-1">🔍 Key Insight:</div>
+                            <p className="truncate">{message.summary.insights[0]}</p>
+                            {message.summary.insights.length > 1 && (
+                              <p className="text-gray-500 mt-1">+{message.summary.insights.length - 1} more insights...</p>
+                            )}
                           </div>
                         )}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Charts Section - After text and stats */}
-                  {message.charts && message.charts.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <h4 className="text-xs font-semibold text-gray-700 mb-2">📈 Data Visualizations</h4>
-                      <div className="space-y-3">
-                        {message.charts.map((chart, index) => (
-                          <div key={index} className="bg-white rounded-lg p-3 border border-gray-200">
-                            <ChartRenderer chartData={chart} />
+                        
+                        {/* Charts indicator without preview */}
+                        {message.charts && message.charts.length > 0 && (
+                          <div className="mt-2 text-xs text-center">
+                            <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                              📈 {message.charts.length} {message.charts.length === 1 ? 'Chart' : 'Charts'} Available
+                            </span>
                           </div>
-                        ))}
+                        )}
                       </div>
                     </div>
                   )}
@@ -634,6 +819,13 @@ export default function ChatInterfaceCard({
           </button>
         </form>
       </div>
+
+      {/* Message Modal for Full AI Responses */}
+      <MessageModal 
+        message={modalMessage}
+        isOpen={isModalOpen}
+        onClose={closeModal}
+      />
     </div>
   )
 } 

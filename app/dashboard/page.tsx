@@ -601,37 +601,95 @@ export default function DashboardPage() {
   }
 
   const addMember = async () => {
-    if (newMember.name && newMember.email && newMember.role) {
-      const member: BoardMember = {
-      id: Math.random().toString(36).substr(2, 9),
-        name: newMember.name,
-        email: newMember.email,
-        role: newMember.role,
-        addedAt: new Date(),
-        status: 'active'
+    if (!newMember.name || !newMember.email || !newMember.role) {
+      alert('Please fill in all required fields')
+      return
+    }
+
+    if (!currentBoard) {
+      alert('No board selected')
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/boards/${currentBoard.id}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newMember.name,
+          email: newMember.email,
+          role: newMember.role,
+          adminUserId: currentUser.id
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        alert(result.error || 'Failed to add member')
+        return
       }
-      
-      const updatedMembers = [...boardMembers, member]
+
+      // Update local state with the new member
+      const updatedMembers = [...boardMembers, result.member]
       setBoardMembers(updatedMembers)
       setNewMember({ name: '', email: '', role: '' })
       setShowAddMember(false)
-      
-      // Save to backend
-      if (currentBoard) {
-        await saveBoard({ ...currentBoard, members: updatedMembers })
-      }
+
+      alert('Member added successfully!')
+      console.log('Member added:', result.member)
+
+    } catch (error) {
+      console.error('Failed to add member:', error)
+      alert('Failed to add member. Please try again.')
     }
   }
 
   const removeMember = async (memberId: string) => {
-    if (memberId === currentUser.id) return // Can't remove yourself
-    
-    const updatedMembers = boardMembers.filter(m => m.id !== memberId)
-    setBoardMembers(updatedMembers)
-    
-    // Save to backend
-    if (currentBoard) {
-      await saveBoard({ ...currentBoard, members: updatedMembers })
+    if (memberId === currentUser.id) {
+      alert("You cannot remove yourself from the board")
+      return
+    }
+
+    if (!currentBoard) {
+      alert('No board selected')
+      return
+    }
+
+    const memberToRemove = boardMembers.find(m => m.id === memberId)
+    if (!memberToRemove) {
+      alert('Member not found')
+      return
+    }
+
+    const confirmRemoval = confirm(`Are you sure you want to remove ${memberToRemove.name} from the board?`)
+    if (!confirmRemoval) return
+
+    try {
+      const response = await fetch(
+        `/api/boards/${currentBoard.id}/members?memberId=${memberId}&adminUserId=${currentUser.id}`,
+        {
+          method: 'DELETE'
+        }
+      )
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        alert(result.error || 'Failed to remove member')
+        return
+      }
+
+      // Update local state
+      const updatedMembers = boardMembers.filter(m => m.id !== memberId)
+      setBoardMembers(updatedMembers)
+
+      alert('Member removed successfully!')
+      console.log('Member removed:', result.removedMember)
+
+    } catch (error) {
+      console.error('Failed to remove member:', error)
+      alert('Failed to remove member. Please try again.')
     }
   }
 
