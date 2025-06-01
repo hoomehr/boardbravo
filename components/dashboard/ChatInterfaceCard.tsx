@@ -283,14 +283,14 @@ export default function ChatInterfaceCard({
                     </div>
                   )}
                   
-                  {/* Summary Stats Section - 3x3 Grid */}
+                  {/* Summary Stats Section - 3x2 Grid */}
                   {message.summary && (
                     <div className="mt-3 pt-3 border-t border-gray-200">
                       <h4 className="text-xs font-semibold text-gray-700 mb-2">📊 {message.summary.title}</h4>
                       <div className="bg-white rounded-lg p-3 border border-gray-200">
-                        {/* 3x3 Grid of Metrics */}
+                        {/* 3x2 Grid of Metrics */}
                         <div className="grid grid-cols-3 gap-2 mb-3">
-                          {message.summary.metrics && message.summary.metrics.slice(0, 9).map((metric: any, idx: number) => {
+                          {message.summary.metrics && message.summary.metrics.slice(0, 6).map((metric: any, idx: number) => {
                             const getIcon = (iconType: string) => {
                               switch(iconType) {
                                 case 'revenue': return '💰'

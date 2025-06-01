@@ -897,12 +897,12 @@ export default function DashboardPage() {
         id: 'financial',
         title: hasDocuments ? 'Q4 Financial Analysis' : 'Financial Analysis',
         description: hasDocuments 
-          ? 'Comprehensive analysis of uploaded financial statements with charts and projections'
+          ? 'Extract financial data with revenue charts, margin analysis, and cash flow metrics'
           : 'Analyze financial documents and data with visual charts',
         detailedDescription: 'Revenue trends, cost analysis, profitability metrics with bar charts and statistics',
         prompt: hasDocuments 
-          ? 'Analyze the uploaded financial documents in detail. Create comprehensive analysis with charts showing revenue trends, cost structures, profitability metrics, and cash flow patterns. Include bar charts for year-over-year comparisons, pie charts for expense breakdowns, and line charts for trend analysis. Provide specific statistics and forward-looking projections with visual representations.'
-          : 'Provide general financial analysis guidance with example charts and statistical insights',
+          ? 'Agent Action: Q4 Financial Analysis - Extract specific financial metrics from uploaded documents. Provide: 1) Revenue figures (current quarter vs previous), 2) Gross margin percentages, 3) Operating expenses breakdown, 4) Cash flow data, 5) EBITDA margins, 6) Year-over-year growth rates. Generate 2 key charts: Revenue performance bar chart (quarterly data) and profit margin trend lines. Include exact numerical values for statistics cards.'
+          : 'Agent Action: Financial Analysis - Provide general financial analysis guidance with example charts and statistical insights for revenue trends, profitability metrics, and cash flow patterns.',
         icon: BarChart3,
         color: 'bg-green-50',
         hoverColor: 'hover:bg-green-100',
@@ -914,9 +914,9 @@ export default function DashboardPage() {
       {
         id: 'risk',
         title: 'Enterprise Risk Analysis',
-        description: 'Risk identification with impact charts and probability matrices',
+        description: 'Extract risk data with impact scores, probability metrics, and mitigation status',
         detailedDescription: 'Operational, financial, strategic, and compliance risks with visual dashboards',
-        prompt: 'Conduct a comprehensive risk assessment based on all uploaded documents. Create visual risk matrices, impact charts, and probability distributions. Generate bar charts showing risk categories, heat maps for risk severity, and statistical analysis of potential impacts. Include specific risk metrics and mitigation recommendations.',
+        prompt: 'Agent Action: Enterprise Risk Analysis - Identify and quantify specific risks from uploaded documents. Provide: 1) Risk categories with impact scores (1-10), 2) Probability percentages for each risk, 3) Financial exposure amounts, 4) Mitigation status percentages, 5) Risk trend analysis, 6) Critical risk count. Generate 2 charts: Risk distribution pie chart and risk impact matrix. Include specific risk metrics and numerical scores for statistics.',
         icon: AlertCircle,
         color: 'bg-red-50',
         hoverColor: 'hover:bg-red-100',
@@ -928,9 +928,9 @@ export default function DashboardPage() {
       {
         id: 'compliance',
         title: 'Regulatory Compliance Audit',
-        description: 'Compliance review with score charts and gap analysis visuals',
+        description: 'Extract compliance scores, framework adherence %, and gap analysis data',
         detailedDescription: 'SOX compliance, governance standards with visual compliance dashboards',
-        prompt: 'Perform a detailed compliance audit of all uploaded documents. Create compliance score charts, gap analysis visuals, and regulatory adherence metrics. Generate bar charts showing compliance levels across different frameworks, pie charts for compliance categories, and trend analysis. Include specific compliance statistics and improvement recommendations.',
+        prompt: 'Agent Action: Regulatory Compliance Audit - Assess compliance status from uploaded documents. Provide: 1) Overall compliance score (percentage), 2) Individual framework scores (SOX, GDPR, ISO 27001, etc.), 3) Number of outstanding issues, 4) Audit readiness percentage, 5) Training completion rates, 6) Policy update counts. Generate 2 charts: Compliance score bar chart by framework and compliance gap analysis. Include specific compliance percentages and numerical metrics.',
         icon: CheckCircle,
         color: 'bg-blue-50',
         hoverColor: 'hover:bg-blue-100',
@@ -942,9 +942,9 @@ export default function DashboardPage() {
       {
         id: 'performance',
         title: 'Executive Performance Dashboard',
-        description: 'KPI analysis with performance charts and benchmarking visuals',
+        description: 'Extract KPI data, achievement rates, efficiency metrics, and benchmark comparisons',
         detailedDescription: 'Operational efficiency charts, strategic goal progress with visual metrics',
-        prompt: 'Create a comprehensive performance analysis from uploaded documents. Generate KPI dashboards with bar charts showing performance metrics, line charts for trend analysis, and comparison charts against benchmarks. Include operational efficiency statistics, goal achievement metrics, and visual performance scorecards with specific numerical insights.',
+        prompt: 'Agent Action: Executive Performance Dashboard - Extract performance metrics from uploaded documents. Provide: 1) KPI achievement percentages, 2) Operational efficiency scores, 3) Revenue per employee, 4) Customer satisfaction scores, 5) Goal completion rates, 6) Productivity improvements. Generate 2 charts: KPI achievement bar chart and performance trend line. Include specific performance percentages and quantitative metrics for statistics.',
         icon: TrendingUp,
         color: 'bg-purple-50',
         hoverColor: 'hover:bg-purple-100',
@@ -956,9 +956,9 @@ export default function DashboardPage() {
       {
         id: 'strategy',
         title: 'Strategic Intelligence Report',
-        description: 'Market analysis with competitive charts and strategic visuals',
+        description: 'Extract market data, competitive metrics, strategic initiative progress, and opportunity analysis',
         detailedDescription: 'Competitive landscape charts, market opportunity visuals with strategic metrics',
-        prompt: 'Generate a strategic intelligence report based on all available documents. Create market positioning charts, competitive analysis visuals, and strategic opportunity matrices. Include bar charts for market share analysis, pie charts for market segments, and trend charts for strategic initiatives. Provide specific market statistics and strategic recommendations with visual support.',
+        prompt: 'Agent Action: Strategic Intelligence Report - Analyze strategic data from uploaded documents. Provide: 1) Market share percentages, 2) Competitive positioning scores, 3) Strategic initiative completion rates, 4) Market opportunity size (TAM), 5) Brand strength ratings, 6) Partnership revenue figures. Generate 2 charts: Market position pie chart and strategic initiative progress bars. Include specific market percentages and strategic metrics for statistics.',
         icon: Zap,
         color: 'bg-orange-50',
         hoverColor: 'hover:bg-orange-100',
