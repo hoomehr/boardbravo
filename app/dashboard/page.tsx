@@ -733,6 +733,36 @@ export default function DashboardPage() {
       
       // Check if this is an agent action message
       if (content.includes('🤖 Agent Action:')) {
+        // Check for specific custom actions from manual modal
+        if (content.includes('Document Summary')) {
+          return 'compliance'
+        }
+        if (content.includes('Action Items Extraction')) {
+          return 'strategy'
+        }
+        if (content.includes('Board Readiness Check')) {
+          return 'performance'
+        }
+        if (content.includes('Stakeholder Communication')) {
+          return 'general'
+        }
+        if (content.includes('Market Trends Analysis')) {
+          return 'financial'
+        }
+        if (content.includes('Competitive Benchmarking')) {
+          return 'strategy'
+        }
+        if (content.includes('Investment Readiness')) {
+          return 'financial'
+        }
+        if (content.includes('ESG Assessment')) {
+          return 'compliance'
+        }
+        // Generic custom analysis fallback
+        if (content.includes('Custom Analysis')) {
+          return 'general'
+        }
+        
         for (const action of agentActions) {
           if (content.includes(action.title)) {
             return action.id as 'financial' | 'risk' | 'compliance' | 'performance' | 'strategy'
@@ -745,6 +775,36 @@ export default function DashboardPage() {
       if (messageIndex > 0 && messageType === 'assistant') {
         const previousMessage = chatMessages[messageIndex - 1]
         if (previousMessage.content.includes('🤖 Agent Action:')) {
+          // Check for specific custom action responses
+          if (previousMessage.content.includes('Document Summary')) {
+            return 'compliance'
+          }
+          if (previousMessage.content.includes('Action Items Extraction')) {
+            return 'strategy'
+          }
+          if (previousMessage.content.includes('Board Readiness Check')) {
+            return 'performance'
+          }
+          if (previousMessage.content.includes('Stakeholder Communication')) {
+            return 'general'
+          }
+          if (previousMessage.content.includes('Market Trends Analysis')) {
+            return 'financial'
+          }
+          if (previousMessage.content.includes('Competitive Benchmarking')) {
+            return 'strategy'
+          }
+          if (previousMessage.content.includes('Investment Readiness')) {
+            return 'financial'
+          }
+          if (previousMessage.content.includes('ESG Assessment')) {
+            return 'compliance'
+          }
+          // Generic custom analysis responses
+          if (previousMessage.content.includes('Custom Analysis')) {
+            return 'general'
+          }
+          
           for (const action of agentActions) {
             if (previousMessage.content.includes(action.title)) {
               return action.id as 'financial' | 'risk' | 'compliance' | 'performance' | 'strategy'
@@ -760,13 +820,56 @@ export default function DashboardPage() {
     const agentActions = getAgentActions()
     const actionInfo = agentActions.find((a: AgentAction) => a.id === actionCategory)
     
+    // Helper function to get custom action info
+    const getCustomActionInfo = (content: string) => {
+      if (content.includes('Document Summary')) {
+        return { tag: 'Summary', type: 'Document Summary' }
+      }
+      if (content.includes('Action Items Extraction')) {
+        return { tag: 'Tasks', type: 'Action Items' }
+      }
+      if (content.includes('Board Readiness Check')) {
+        return { tag: 'Readiness', type: 'Board Readiness' }
+      }
+      if (content.includes('Stakeholder Communication')) {
+        return { tag: 'Communication', type: 'Stakeholder Analysis' }
+      }
+      if (content.includes('Market Trends Analysis')) {
+        return { tag: 'Market', type: 'Market Trends' }
+      }
+      if (content.includes('Competitive Benchmarking')) {
+        return { tag: 'Benchmark', type: 'Competitive Analysis' }
+      }
+      if (content.includes('Investment Readiness')) {
+        return { tag: 'Investment', type: 'Investment Readiness' }
+      }
+      if (content.includes('ESG Assessment')) {
+        return { tag: 'ESG', type: 'ESG Assessment' }
+      }
+      if (content.includes('Custom Analysis')) {
+        return { tag: 'Custom', type: 'Custom Analysis' }
+      }
+      return null
+    }
+    
+    const customActionInfo = getCustomActionInfo(messageContent)
+    const isCustomAction = customActionInfo !== null
+    
     const title = messageType === 'user' 
-      ? (actionCategory !== 'general' ? `${actionInfo?.tag} Action - ${format(new Date(), 'MMM dd, HH:mm')}` : `Board Message - ${format(new Date(), 'MMM dd, HH:mm')}`)
-      : (actionCategory !== 'general' ? `${actionInfo?.tag} Analysis - ${format(new Date(), 'MMM dd, HH:mm')}` : `AI Response - ${format(new Date(), 'MMM dd, HH:mm')}`)
+      ? (actionCategory !== 'general' && !isCustomAction ? `${actionInfo?.tag} Action - ${format(new Date(), 'MMM dd, HH:mm')}` 
+          : isCustomAction ? `${customActionInfo.tag} Action - ${format(new Date(), 'MMM dd, HH:mm')}`
+          : `Board Message - ${format(new Date(), 'MMM dd, HH:mm')}`)
+      : (actionCategory !== 'general' && !isCustomAction ? `${actionInfo?.tag} Analysis - ${format(new Date(), 'MMM dd, HH:mm')}` 
+          : isCustomAction ? `${customActionInfo.tag} Analysis - ${format(new Date(), 'MMM dd, HH:mm')}`
+          : `AI Response - ${format(new Date(), 'MMM dd, HH:mm')}`)
     
     const source = messageType === 'user' 
-      ? (actionCategory !== 'general' ? `Agent Action by ${currentUser.name}` : `Message from ${currentUser.name}`)
-      : (actionCategory !== 'general' ? `BoardBravo AI - ${actionInfo?.tag} Analysis` : 'BoardBravo AI Assistant')
+      ? (actionCategory !== 'general' && !isCustomAction ? `Agent Action by ${currentUser.name}` 
+          : isCustomAction ? `${customActionInfo.type} by ${currentUser.name}`
+          : `Message from ${currentUser.name}`)
+      : (actionCategory !== 'general' && !isCustomAction ? `BoardBravo AI - ${actionInfo?.tag} Analysis` 
+          : isCustomAction ? `BoardBravo AI - ${customActionInfo.type}`
+          : 'BoardBravo AI Assistant')
     
     await saveNote({
       title: title,
@@ -775,8 +878,12 @@ export default function DashboardPage() {
       source: source,
       isPinned: false,
       tags: messageType === 'user' 
-        ? (actionCategory !== 'general' ? ['agent-action', actionCategory] : ['user-message'])
-        : (actionCategory !== 'general' ? ['ai-analysis', actionCategory] : ['ai-response'])
+        ? (actionCategory !== 'general' ? ['agent-action', actionCategory] 
+            : isCustomAction ? ['custom-action', actionCategory]
+            : ['user-message'])
+        : (actionCategory !== 'general' ? ['ai-analysis', actionCategory] 
+            : isCustomAction ? ['custom-analysis', actionCategory]
+            : ['ai-response'])
     })
   }
 
@@ -987,7 +1094,7 @@ export default function DashboardPage() {
   // Board Header Component
   const BoardHeaderCard = () => (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
             <Users className="w-5 h-5 text-white" />
@@ -1004,13 +1111,13 @@ export default function DashboardPage() {
               {isAdmin && (
                 <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
                   Admin
-                </span>
+                            </span>
               )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                </div>
   )
 
   // Manual Action Modal
@@ -1026,13 +1133,13 @@ export default function DashboardPage() {
             >
               <X className="w-5 h-5" />
             </button>
-          </div>
+              </div>
 
           {/* Quick Analysis Actions */}
           <div className="mb-8">
             <h4 className="text-lg font-medium text-gray-900 mb-4">Document & Communication Analysis</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <button
+                <button
                 onClick={() => {
                   handleAgentAction('Document Summary', 'Provide a comprehensive executive summary of all uploaded documents, highlighting key decisions, action items, and financial implications.')
                   setShowManualAction(false)
@@ -1048,9 +1155,9 @@ export default function DashboardPage() {
                 </div>
                 <h5 className="text-sm font-semibold text-gray-900 mb-2">Document Summary</h5>
                 <p className="text-sm text-gray-600">Executive summary of all uploaded documents with key insights</p>
-              </button>
-
-              <button
+                </button>
+                
+                <button
                 onClick={() => {
                   handleAgentAction('Action Items Extraction', 'Extract and prioritize all action items, decisions, and follow-up tasks from the uploaded documents and conversations.')
                   setShowManualAction(false)
@@ -1066,9 +1173,9 @@ export default function DashboardPage() {
                 </div>
                 <h5 className="text-sm font-semibold text-gray-900 mb-2">Action Items</h5>
                 <p className="text-sm text-gray-600">Extract and prioritize action items from documents</p>
-              </button>
-
-              <button
+                </button>
+                
+                <button
                 onClick={() => {
                   handleAgentAction('Board Readiness Check', 'Assess board meeting readiness, document completeness, and identify any gaps or missing information.')
                   setShowManualAction(false)
@@ -1084,9 +1191,9 @@ export default function DashboardPage() {
                 </div>
                 <h5 className="text-sm font-semibold text-gray-900 mb-2">Board Readiness</h5>
                 <p className="text-sm text-gray-600">Check meeting readiness and document completeness</p>
-              </button>
-
-              <button
+                </button>
+                
+                <button
                 onClick={() => {
                   handleAgentAction('Stakeholder Communication', 'Analyze communication patterns, sentiment, and key themes from board discussions and email exchanges.')
                   setShowManualAction(false)
@@ -1097,20 +1204,20 @@ export default function DashboardPage() {
                 <div className="flex items-center space-x-2 mb-3">
                   <div className="p-2 rounded-lg bg-cyan-100">
                     <Users className="w-5 h-5 text-cyan-600" />
-                  </div>
+              </div>
                   <span className="text-sm text-cyan-600 uppercase tracking-wide font-semibold">Communication</span>
-                </div>
+                  </div>
                 <h5 className="text-sm font-semibold text-gray-900 mb-2">Stakeholder Analysis</h5>
                 <p className="text-sm text-gray-600">Communication patterns and sentiment analysis</p>
               </button>
-            </div>
-          </div>
+                        </div>
+                      </div>
 
           {/* Market & Industry Analysis */}
           <div className="mb-8">
             <h4 className="text-lg font-medium text-gray-900 mb-4">Market & Industry Intelligence</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <button
+                        <button
                 onClick={() => {
                   handleAgentAction('Market Trends Analysis', 'Analyze industry trends, competitive landscape, and market opportunities based on available data and documents.')
                   setShowManualAction(false)
@@ -1121,14 +1228,14 @@ export default function DashboardPage() {
                 <div className="flex items-center space-x-2 mb-3">
                   <div className="p-2 rounded-lg bg-green-100">
                     <TrendingUp className="w-5 h-5 text-green-600" />
-                  </div>
+                      </div>
                   <span className="text-sm text-green-600 uppercase tracking-wide font-semibold">Market</span>
-                </div>
+                    </div>
                 <h5 className="text-sm font-semibold text-gray-900 mb-2">Market Trends</h5>
                 <p className="text-sm text-gray-600">Industry trends and competitive landscape analysis</p>
               </button>
 
-              <button
+                  <button
                 onClick={() => {
                   handleAgentAction('Competitive Benchmarking', 'Compare company performance against industry benchmarks and key competitors across financial and operational metrics.')
                   setShowManualAction(false)
@@ -1139,9 +1246,9 @@ export default function DashboardPage() {
                 <div className="flex items-center space-x-2 mb-3">
                   <div className="p-2 rounded-lg bg-indigo-100">
                     <BarChart3 className="w-5 h-5 text-indigo-600" />
-                  </div>
-                  <span className="text-sm text-indigo-600 uppercase tracking-wide font-semibold">Benchmark</span>
                 </div>
+                  <span className="text-sm text-indigo-600 uppercase tracking-wide font-semibold">Benchmark</span>
+              </div>
                 <h5 className="text-sm font-semibold text-gray-900 mb-2">Competitive Analysis</h5>
                 <p className="text-sm text-gray-600">Performance benchmarking against competitors</p>
               </button>
@@ -1159,7 +1266,7 @@ export default function DashboardPage() {
                     <Zap className="w-5 h-5 text-yellow-600" />
                   </div>
                   <span className="text-sm text-yellow-600 uppercase tracking-wide font-semibold">Investment</span>
-                </div>
+                              </div>
                 <h5 className="text-sm font-semibold text-gray-900 mb-2">Investment Readiness</h5>
                 <p className="text-sm text-gray-600">Valuation metrics and investor preparation</p>
               </button>
@@ -1175,14 +1282,14 @@ export default function DashboardPage() {
                 <div className="flex items-center space-x-2 mb-3">
                   <div className="p-2 rounded-lg bg-emerald-100">
                     <Building2 className="w-5 h-5 text-emerald-600" />
-                  </div>
+                              </div>
                   <span className="text-sm text-emerald-600 uppercase tracking-wide font-semibold">ESG</span>
-                </div>
+                                      </div>
                 <h5 className="text-sm font-semibold text-gray-900 mb-2">ESG Assessment</h5>
                 <p className="text-sm text-gray-600">Environmental, Social, and Governance evaluation</p>
               </button>
-            </div>
-          </div>
+                                      </div>
+                                    </div>
 
           {/* Custom Action Section */}
           <div className="border-t border-gray-200 pt-6">
@@ -1200,20 +1307,20 @@ export default function DashboardPage() {
                   rows={4}
                 />
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-500">
                   <span className="font-medium">Tip:</span> Be specific about what insights or charts you need
                 </div>
                 <div className="flex items-center space-x-3">
-                  <button
+                      <button
                     onClick={() => setShowManualAction(false)}
                     className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors text-sm"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={() => {
+                        onClick={() => {
                       if (manualActionQuery.trim()) {
                         handleAgentAction('Custom Analysis', manualActionQuery)
                         setManualActionQuery('')
@@ -1224,10 +1331,10 @@ export default function DashboardPage() {
                     className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
                   >
                     {isProcessing ? 'Processing...' : 'Execute Analysis'}
-                  </button>
+                      </button>
+                  </div>
                 </div>
               </div>
-            </div>
           </div>
         </div>
       </div>
@@ -1266,7 +1373,7 @@ export default function DashboardPage() {
               integrations={integrations}
               onConnect={handleIntegrationConnect}
             />
-          </div>
+              </div>
 
           {/* Middle Panel: Board Management Cards */}
           <div className="lg:col-span-1 space-y-4">
@@ -1290,7 +1397,7 @@ export default function DashboardPage() {
               onDeleteNote={deleteNote}
               onTogglePin={togglePinNote}
             />
-          </div>
+            </div>
 
           {/* Right Panel: Chat Interface */}
           <div className="lg:col-span-2">

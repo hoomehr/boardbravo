@@ -219,6 +219,36 @@ export default function ChatInterfaceCard({
     
     // Check if this is an agent action message
     if (content.includes('🤖 Agent Action:')) {
+      // Check for specific custom actions from manual modal
+      if (content.includes('Document Summary')) {
+        return { type: 'compliance', colors: { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' } }
+      }
+      if (content.includes('Action Items Extraction')) {
+        return { type: 'strategy', colors: { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' } }
+      }
+      if (content.includes('Board Readiness Check')) {
+        return { type: 'performance', colors: { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' } }
+      }
+      if (content.includes('Stakeholder Communication')) {
+        return { type: 'general', colors: { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-200' } }
+      }
+      if (content.includes('Market Trends Analysis')) {
+        return { type: 'financial', colors: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' } }
+      }
+      if (content.includes('Competitive Benchmarking')) {
+        return { type: 'strategy', colors: { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200' } }
+      }
+      if (content.includes('Investment Readiness')) {
+        return { type: 'financial', colors: { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200' } }
+      }
+      if (content.includes('ESG Assessment')) {
+        return { type: 'compliance', colors: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200' } }
+      }
+      // Generic custom analysis fallback
+      if (content.includes('Custom Analysis')) {
+        return { type: 'general', colors: { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200' } }
+      }
+      
       for (const action of agentActions) {
         if (content.includes(action.title)) {
           const colorMap: {[key: string]: {bg: string, text: string, border: string}} = {
@@ -238,6 +268,36 @@ export default function ChatInterfaceCard({
     if (messageIndex > 0) {
       const previousMessage = chatMessages[messageIndex - 1]
       if (previousMessage.content.includes('🤖 Agent Action:')) {
+        // Check for specific custom action responses
+        if (previousMessage.content.includes('Document Summary')) {
+          return { type: 'compliance', colors: { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' } }
+        }
+        if (previousMessage.content.includes('Action Items Extraction')) {
+          return { type: 'strategy', colors: { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' } }
+        }
+        if (previousMessage.content.includes('Board Readiness Check')) {
+          return { type: 'performance', colors: { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' } }
+        }
+        if (previousMessage.content.includes('Stakeholder Communication')) {
+          return { type: 'general', colors: { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-200' } }
+        }
+        if (previousMessage.content.includes('Market Trends Analysis')) {
+          return { type: 'financial', colors: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' } }
+        }
+        if (previousMessage.content.includes('Competitive Benchmarking')) {
+          return { type: 'strategy', colors: { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200' } }
+        }
+        if (previousMessage.content.includes('Investment Readiness')) {
+          return { type: 'financial', colors: { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200' } }
+        }
+        if (previousMessage.content.includes('ESG Assessment')) {
+          return { type: 'compliance', colors: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200' } }
+        }
+        // Generic custom analysis responses
+        if (previousMessage.content.includes('Custom Analysis')) {
+          return { type: 'general', colors: { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200' } }
+        }
+        
         for (const action of agentActions) {
           if (previousMessage.content.includes(action.title)) {
             const colorMap: {[key: string]: {bg: string, text: string, border: string}} = {
@@ -253,8 +313,8 @@ export default function ChatInterfaceCard({
       }
     }
     
-    // Default to green for regular saves
-    return { type: 'general', colors: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' } }
+    // Default to gray for regular user messages and general content
+    return { type: 'general', colors: { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200' } }
   }
 
   // Handle saving message as note
