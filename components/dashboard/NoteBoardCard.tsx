@@ -245,11 +245,11 @@ export default function NoteBoardCard({
       {/* Enhanced Note Modal */}
       {selectedNote && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl max-w-7xl w-full max-h-[95vh] shadow-2xl border border-gray-100 flex flex-col">
+          <div className="bg-white rounded-3xl max-w-7xl w-full max-h-[95vh] shadow-2xl border border-gray-100 flex flex-col overflow-hidden">
             {/* Enhanced Modal Header with Gradient */}
             <div className="relative flex-shrink-0">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 opacity-10"></div>
-              <div className="relative flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 opacity-10 rounded-t-3xl"></div>
+              <div className="relative flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-t-3xl">
                 <div className="flex items-center space-x-4">
                   <div className="relative">
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl transform rotate-3 hover:rotate-0 transition-transform duration-300 ${
@@ -626,7 +626,7 @@ export default function NoteBoardCard({
             </div>
             
             {/* Enhanced Footer */}
-            <div className="flex-shrink-0 flex items-center justify-between p-6 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
+            <div className="flex-shrink-0 flex items-center justify-between p-6 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50 rounded-b-3xl">
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => onTogglePin(selectedNote.id)}
