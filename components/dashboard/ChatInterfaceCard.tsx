@@ -1014,21 +1014,18 @@ export default function ChatInterfaceCard({
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-900'
                 } shadow-sm`}>
-                  {/* Text Response - Fixed size with expand option for AI messages */}
-                  {message.content && (
+                  {/* Message Content */}
+                  {message.type === 'user' ? (
+                    <div className="text-sm text-gray-900 leading-relaxed whitespace-pre-wrap">
+                      {message.content}
+                    </div>
+                  ) : (
                     <div className="text-xs whitespace-pre-wrap leading-relaxed">
                       {message.type === 'assistant' && shouldTruncateContent(message.content) ? (
                         <div>
                           <ReactMarkdown>
                             {getTruncatedContent(message.content)}
                           </ReactMarkdown>
-                          <button
-                            onClick={() => openModal(message)}
-                            className="inline-flex items-center space-x-1 mt-2 px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs rounded-md transition-colors"
-                          >
-                            <Maximize2 className="w-3 h-3" />
-                            <span>View Full Response</span>
-                          </button>
                         </div>
                       ) : (
                         <ReactMarkdown>{message.content}</ReactMarkdown>
@@ -1111,6 +1108,21 @@ export default function ChatInterfaceCard({
                             </span>
                           </div>
                         )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* View Full Response Button - Moved to bottom for better visibility */}
+                  {message.type === 'assistant' && shouldTruncateContent(message.content) && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <div className="flex justify-center">
+                        <button
+                          onClick={() => openModal(message)}
+                          className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
+                        >
+                          <Maximize2 className="w-4 h-4" />
+                          <span>View Full Response</span>
+                        </button>
                       </div>
                     </div>
                   )}
