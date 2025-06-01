@@ -60,6 +60,8 @@ RESPONSE STRUCTURE - Always follow this format:
 4. CHARTS/VISUALS (when data is available)
 5. ACTION ITEMS/RECOMMENDATIONS
 
+RESPONSE LENGTH: Keep responses under 1000 characters for optimal readability. Be concise and focus on the most critical insights.
+
 INVESTOR FOCUS RULES:
 - Lead with financial impact and business implications
 - Highlight risks, opportunities, and strategic decisions
@@ -148,27 +150,11 @@ Remember: You're advising sophisticated investors and board members who need act
     // Generate summary metrics for investor dashboard (only for specific agent actions)
     const summary = isSpecificAgentAction ? this.generateInvestorSummary(originalPrompt, hasDocuments) : undefined
 
-    // Limit response text to 650 characters for concise responses
-    let responseText = text
-    if (responseText.length > 650) {
-      responseText = responseText.substring(0, 650).trim()
-      // Find the last complete sentence or word to avoid cutting mid-word
-      const lastPeriod = responseText.lastIndexOf('.')
-      const lastSpace = responseText.lastIndexOf(' ')
-      if (lastPeriod > 500) {
-        responseText = responseText.substring(0, lastPeriod + 1)
-      } else if (lastSpace > 500) {
-        responseText = responseText.substring(0, lastSpace) + '...'
-      } else {
-        responseText = responseText + '...'
-      }
-    }
-
     // For chart-focused queries, return minimal text response
-    // For other queries (like risk assessment, strategic analysis), return limited text + charts
+    // For other queries, return full AI response
     const finalResponseText = isChartQuery && charts.length > 0 
       ? "" // No text response for chart-focused queries only
-      : responseText
+      : text
 
     return {
       response: finalResponseText,
