@@ -115,6 +115,32 @@ export default function ChatInterfaceCard({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [savedMessages, setSavedMessages] = useState<Set<string>>(new Set())
 
+  // Load saved message IDs from localStorage on mount
+  useEffect(() => {
+    if (isClient) {
+      try {
+        const saved = localStorage.getItem('boardbravo-saved-messages')
+        if (saved) {
+          const savedArray = JSON.parse(saved)
+          setSavedMessages(new Set(savedArray))
+        }
+      } catch (error) {
+        console.error('Failed to load saved messages from localStorage:', error)
+      }
+    }
+  }, [isClient])
+
+  // Save to localStorage whenever savedMessages changes
+  useEffect(() => {
+    if (isClient && savedMessages.size > 0) {
+      try {
+        localStorage.setItem('boardbravo-saved-messages', JSON.stringify(Array.from(savedMessages)))
+      } catch (error) {
+        console.error('Failed to save messages to localStorage:', error)
+      }
+    }
+  }, [savedMessages, isClient])
+
   // Auto-scroll to bottom function
   const scrollToBottom = (behavior: 'smooth' | 'instant' = 'smooth') => {
     if (messagesEndRef.current && chatContainerRef.current) {
@@ -189,18 +215,17 @@ export default function ChatInterfaceCard({
 
   // Handle saving message as note
   const handleSaveMessageAsNote = async (messageId: string, content: string, type: 'user' | 'assistant') => {
+    // Prevent saving if already saved
+    if (savedMessages.has(messageId)) {
+      return
+    }
+
     try {
       await onSaveMessageAsNote(content, type)
+      // Permanently mark this message as saved
       setSavedMessages(prev => new Set(prev).add(messageId))
       
-      // Remove from saved messages after 3 seconds to allow re-saving if needed
-      setTimeout(() => {
-        setSavedMessages(prev => {
-          const newSet = new Set(prev)
-          newSet.delete(messageId)
-          return newSet
-        })
-      }, 3000)
+      console.log(`Message ${messageId} saved to notes permanently`)
     } catch (error) {
       console.error('Failed to save message as note:', error)
     }
@@ -364,26 +389,28 @@ export default function ChatInterfaceCard({
                   )}
                 </div>
                 
-                {/* Save to Notes Button */}
-                <button
-                  onClick={() => handleSaveMessageAsNote(message.id, message.content, message.type)}
-                  className={`absolute top-1 ${message.type === 'user' ? 'left-1' : 'right-1'} opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 rounded-full ${
-                    message.type === 'user' 
-                      ? 'bg-blue-700 hover:bg-blue-800' 
-                      : 'bg-white hover:bg-gray-50 border border-gray-200'
-                  } shadow-sm`}
-                  title="Save as note"
-                >
-                  {savedMessages.has(message.id) ? (
-                    <BookmarkCheck className={`w-3 h-3 ${
-                      message.type === 'user' ? 'text-green-300' : 'text-green-600'
-                    }`} />
-                  ) : (
-                    <Bookmark className={`w-3 h-3 ${
-                      message.type === 'user' ? 'text-blue-200' : 'text-gray-500'
-                    }`} />
-                  )}
-                </button>
+                {/* Save to Notes Button - Outside message bubble */}
+                <div className={`flex ${message.type === 'user' ? 'justify-start' : 'justify-end'} mt-2`}>
+                  <button
+                    onClick={() => handleSaveMessageAsNote(message.id, message.content, message.type)}
+                    disabled={savedMessages.has(message.id)}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors duration-200 ${
+                      savedMessages.has(message.id)
+                        ? 'bg-green-100 text-green-700 cursor-default border border-green-200'
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 border border-gray-200'
+                    } shadow-sm`}
+                    title={savedMessages.has(message.id) ? "Already saved to notes" : "Save as note"}
+                  >
+                    {savedMessages.has(message.id) ? (
+                      <BookmarkCheck className="w-4 h-4" />
+                    ) : (
+                      <Bookmark className="w-4 h-4" />
+                    )}
+                    <span className="text-xs font-medium">
+                      {savedMessages.has(message.id) ? "Saved" : "Save to notes"}
+                    </span>
+                  </button>
+                </div>
               </div>
               
               <div className={`text-xs text-gray-500 mt-1 ${
