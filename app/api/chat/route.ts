@@ -11,7 +11,12 @@ export async function POST(request: NextRequest) {
       actionTitle,
       boardId,
       isMention,
-      isQuickAction
+      isQuickAction,
+      generateCharts,
+      includeStatistics,
+      chartTypes,
+      requestVisualAnalysis,
+      isAgentMention
     } = await request.json()
 
     if (!message) {
@@ -36,6 +41,37 @@ export async function POST(request: NextRequest) {
     
     if (isAgentAction && actionTitle) {
       contextualMessage = `Agent Action: ${actionTitle}\n\nRequest: ${message}\n\nPlease provide detailed analysis based on all available documents${integrations && integrations.length > 0 ? ' and connected integrations' : ''}.`
+      
+      // Add chart and statistics requirements for agent actions
+      if (generateCharts) {
+        contextualMessage += `\n\nIMPORTANT: Generate visual charts and graphs to support your analysis. Include:`
+        if (chartTypes && chartTypes.length > 0) {
+          contextualMessage += `\n- Chart types: ${chartTypes.join(', ')} charts`
+        }
+        contextualMessage += `\n- Bar charts for comparisons and categorical data`
+        contextualMessage += `\n- Line charts for trends over time`
+        contextualMessage += `\n- Pie charts for proportional data`
+        contextualMessage += `\n- Include specific numerical data points`
+      }
+      
+      if (includeStatistics) {
+        contextualMessage += `\n\nInclude detailed statistics such as:`
+        contextualMessage += `\n- Key performance metrics with numerical values`
+        contextualMessage += `\n- Percentage changes and growth rates`
+        contextualMessage += `\n- Comparative analysis with benchmarks`
+        contextualMessage += `\n- Risk assessments with probability scores`
+        contextualMessage += `\n- Recommendations with priority levels`
+      }
+      
+      if (requestVisualAnalysis) {
+        contextualMessage += `\n\nProvide visual analysis summaries including:`
+        contextualMessage += `\n- Key insights with supporting data`
+        contextualMessage += `\n- Actionable recommendations`
+        contextualMessage += `\n- Risk factors and mitigation strategies`
+        contextualMessage += `\n- Performance indicators and benchmarks`
+      }
+    } else if (isAgentMention) {
+      contextualMessage = `@Agent Request: ${message}\n\nPlease provide helpful analysis based on available documents and context. Focus on actionable insights relevant to board governance and business decisions.`
     }
     
     if (integrations && integrations.length > 0) {
@@ -48,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       response: aiResponse.response,
-      charts: aiResponse.charts,
+      charts: aiResponse.charts, // Only include if AI provides chart data
       summary: aiResponse.summary,
       provider: aiProvider.name,
       availableProviders: getAvailableProviders()

@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useRef, FormEvent, useEffect } from 'react'
-import { Plus, Users, User, Bot, Send, Loader2, TrendingUp, TrendingDown, Brain, Sparkles } from 'lucide-react'
+import React, { useRef, FormEvent, useEffect, useState } from 'react'
+import { Plus, Users, User, Bot, Send, Loader2, TrendingUp, TrendingDown, Brain, Sparkles, Bookmark, BookmarkCheck } from 'lucide-react'
 import { format } from 'date-fns'
 import ReactMarkdown from 'react-markdown'
 import ChartRenderer from '@/components/charts/ChartRenderer'
@@ -46,6 +46,7 @@ interface ChatInterfaceCardProps {
   onMessageChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   onAgentAction: (actionTitle: string, actionDescription: string) => void
   onShowManualAction: () => void
+  onSaveMessageAsNote: (messageContent: string, messageType: 'user' | 'assistant') => void
   getAgentActions: () => AgentAction[]
 }
 
@@ -107,10 +108,12 @@ export default function ChatInterfaceCard({
   onMessageChange,
   onAgentAction,
   onShowManualAction,
+  onSaveMessageAsNote,
   getAgentActions
 }: ChatInterfaceCardProps) {
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [savedMessages, setSavedMessages] = useState<Set<string>>(new Set())
 
   // Auto-scroll to bottom function
   const scrollToBottom = (behavior: 'smooth' | 'instant' = 'smooth') => {
@@ -184,6 +187,25 @@ export default function ChatInterfaceCard({
     }
   }, [isClient])
 
+  // Handle saving message as note
+  const handleSaveMessageAsNote = async (messageId: string, content: string, type: 'user' | 'assistant') => {
+    try {
+      await onSaveMessageAsNote(content, type)
+      setSavedMessages(prev => new Set(prev).add(messageId))
+      
+      // Remove from saved messages after 3 seconds to allow re-saving if needed
+      setTimeout(() => {
+        setSavedMessages(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(messageId)
+          return newSet
+        })
+      }, 3000)
+    } catch (error) {
+      console.error('Failed to save message as note:', error)
+    }
+  }
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-full">
       {/* Chat Header - Compact */}
@@ -233,7 +255,7 @@ export default function ChatInterfaceCard({
             key={message.id}
             className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            <div className={`max-w-[85%] ${message.type === 'user' ? 'order-2' : 'order-1'}`}>
+            <div className={`max-w-[85%] ${message.type === 'user' ? 'order-2' : 'order-1'} group`}>
               {message.type === 'assistant' && (
                 <div className="flex items-center space-x-2 mb-2">
                   <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
@@ -243,22 +265,105 @@ export default function ChatInterfaceCard({
                 </div>
               )}
               
-              <div className={`rounded-lg px-3 py-2 ${
-                message.type === 'user'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-900'
-              } shadow-sm`}>
-                <div className="text-xs whitespace-pre-wrap leading-relaxed">
-                  <ReactMarkdown>
-                    {message.content}
-                  </ReactMarkdown>
+              <div className="relative">
+                <div className={`rounded-lg px-3 py-2 ${
+                  message.type === 'user'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-900'
+                } shadow-sm`}>
+                  <div className="text-xs whitespace-pre-wrap leading-relaxed">
+                    <ReactMarkdown>
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
+                  
+                  {/* Charts Section */}
+                  {message.charts && message.charts.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <h4 className="text-xs font-semibold text-gray-700 mb-2">📊 Generated Charts & Analytics</h4>
+                      <div className="space-y-3">
+                        {message.charts.map((chart, index) => (
+                          <div key={index} className="bg-white rounded-lg p-3 border border-gray-200">
+                            <ChartRenderer chartData={chart} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Summary Section */}
+                  {message.summary && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <h4 className="text-xs font-semibold text-gray-700 mb-2">📋 Key Insights Summary</h4>
+                      <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                        <div className="text-xs text-gray-800 space-y-2">
+                          {message.summary.keyMetrics && (
+                            <div>
+                              <span className="font-semibold text-blue-800">Key Metrics:</span>
+                              <ul className="mt-1 ml-3 space-y-1">
+                                {message.summary.keyMetrics.map((metric: string, idx: number) => (
+                                  <li key={idx} className="text-xs">• {metric}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          {message.summary.recommendations && (
+                            <div>
+                              <span className="font-semibold text-green-800">Recommendations:</span>
+                              <ul className="mt-1 ml-3 space-y-1">
+                                {message.summary.recommendations.map((rec: string, idx: number) => (
+                                  <li key={idx} className="text-xs">• {rec}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          {message.summary.riskFactors && (
+                            <div>
+                              <span className="font-semibold text-red-800">Risk Factors:</span>
+                              <ul className="mt-1 ml-3 space-y-1">
+                                {message.summary.riskFactors.map((risk: string, idx: number) => (
+                                  <li key={idx} className="text-xs">• {risk}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
+                
+                {/* Save to Notes Button */}
+                <button
+                  onClick={() => handleSaveMessageAsNote(message.id, message.content, message.type)}
+                  className={`absolute top-1 ${message.type === 'user' ? 'left-1' : 'right-1'} opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 rounded-full ${
+                    message.type === 'user' 
+                      ? 'bg-blue-700 hover:bg-blue-800' 
+                      : 'bg-white hover:bg-gray-50 border border-gray-200'
+                  } shadow-sm`}
+                  title="Save as note"
+                >
+                  {savedMessages.has(message.id) ? (
+                    <BookmarkCheck className={`w-3 h-3 ${
+                      message.type === 'user' ? 'text-green-300' : 'text-green-600'
+                    }`} />
+                  ) : (
+                    <Bookmark className={`w-3 h-3 ${
+                      message.type === 'user' ? 'text-blue-200' : 'text-gray-500'
+                    }`} />
+                  )}
+                </button>
               </div>
               
               <div className={`text-xs text-gray-500 mt-1 ${
                 message.type === 'user' ? 'text-right' : 'text-left'
               }`}>
                 {format(message.timestamp, 'HH:mm')}
+                {savedMessages.has(message.id) && (
+                  <span className="ml-2 text-green-600 font-medium">✓ Saved to notes</span>
+                )}
               </div>
             </div>
           </div>
@@ -315,12 +420,6 @@ export default function ChatInterfaceCard({
                 </div>
                 <p className="text-xs text-gray-900 font-semibold mb-1">{action.title}</p>
                 <p className="text-xs text-gray-600 line-clamp-2 leading-tight">{action.description}</p>
-                <div className="mt-1 text-xs text-blue-600 group-hover:opacity-100 transition-opacity">
-                  💬 Creates chat response
-                  {documents.filter((doc: any) => doc.status === 'ready').length > 0 && (
-                    <span> • {documents.filter((doc: any) => doc.status === 'ready').length} docs</span>
-                  )}
-                </div>
               </button>
             ))}
 
@@ -336,12 +435,6 @@ export default function ChatInterfaceCard({
               </div>
               <p className="text-xs text-gray-900 font-semibold mb-1">Manual Action</p>
               <p className="text-xs text-gray-600 leading-tight">Custom AI analysis request</p>
-              <div className="mt-1 text-xs text-blue-600 group-hover:opacity-100 transition-opacity">
-                💬 Creates chat response
-                {documents.filter((doc: any) => doc.status === 'ready').length > 0 && (
-                  <span> • {documents.filter((doc: any) => doc.status === 'ready').length} docs</span>
-                )}
-              </div>
             </button>
           </div>
         </div>

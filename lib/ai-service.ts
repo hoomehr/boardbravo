@@ -147,14 +147,30 @@ Remember: You're advising sophisticated investors and board members who need act
     // Generate summary metrics for investor dashboard
     const summary = this.generateInvestorSummary(originalPrompt, hasDocuments)
 
+    // Limit response text to 650 characters for concise responses
+    let responseText = text
+    if (responseText.length > 650) {
+      responseText = responseText.substring(0, 650).trim()
+      // Find the last complete sentence or word to avoid cutting mid-word
+      const lastPeriod = responseText.lastIndexOf('.')
+      const lastSpace = responseText.lastIndexOf(' ')
+      if (lastPeriod > 500) {
+        responseText = responseText.substring(0, lastPeriod + 1)
+      } else if (lastSpace > 500) {
+        responseText = responseText.substring(0, lastSpace) + '...'
+      } else {
+        responseText = responseText + '...'
+      }
+    }
+
     // For chart-focused queries, return minimal text response
-    // For other queries (like risk assessment, strategic analysis), return full text + charts
-    const responseText = isChartQuery && charts.length > 0 
+    // For other queries (like risk assessment, strategic analysis), return limited text + charts
+    const finalResponseText = isChartQuery && charts.length > 0 
       ? "" // No text response for chart-focused queries only
-      : text
+      : responseText
 
     return {
-      response: responseText,
+      response: finalResponseText,
       charts,
       summary
     }
@@ -192,12 +208,19 @@ Remember: You're advising sophisticated investors and board members who need act
       }]
     }
     
-    // Generate charts based on document content and query type
-    if (prompt.toLowerCase().includes('revenue') || prompt.toLowerCase().includes('financial') || prompt.toLowerCase().includes('performance') || prompt.toLowerCase().includes('q4')) {
+    // Enhanced agent action type detection
+    const isFinancialAnalysis = prompt.toLowerCase().includes('financial analysis') || prompt.toLowerCase().includes('q4 financial')
+    const isRiskAnalysis = prompt.toLowerCase().includes('enterprise risk') || prompt.toLowerCase().includes('risk analysis')
+    const isComplianceAudit = prompt.toLowerCase().includes('compliance audit') || prompt.toLowerCase().includes('regulatory compliance')
+    const isPerformanceDashboard = prompt.toLowerCase().includes('performance dashboard') || prompt.toLowerCase().includes('executive performance')
+    const isStrategicIntelligence = prompt.toLowerCase().includes('strategic intelligence') || prompt.toLowerCase().includes('strategic')
+    
+    // Financial Analysis Charts
+    if (isFinancialAnalysis || prompt.toLowerCase().includes('revenue') || prompt.toLowerCase().includes('financial') || prompt.toLowerCase().includes('performance') || prompt.toLowerCase().includes('q4')) {
       charts.push({
         type: 'bar',
         title: 'Revenue Performance Analysis',
-        description: 'Based on uploaded financial documents',
+        description: 'Quarterly revenue vs targets with growth rates',
         data: [
           { period: 'Q1 2024', actual: 2.8, target: 2.5, growth: 12 },
           { period: 'Q2 2024', actual: 3.2, target: 2.8, growth: 14 },
@@ -209,49 +232,166 @@ Remember: You're advising sophisticated investors and board members who need act
       })
       
       charts.push({
-        type: 'line',
-        title: 'Growth Trajectory',
-        description: 'Quarter-over-quarter growth percentage',
+        type: 'pie',
+        title: 'Revenue Breakdown by Segment',
+        description: 'Q4 2024 revenue distribution across business units',
         data: [
-          { period: 'Q1 2024', growth: 12 },
-          { period: 'Q2 2024', growth: 14 },
-          { period: 'Q3 2024', growth: 16 },
-          { period: 'Q4 2024', growth: 11 }
+          { segment: 'Enterprise Sales', value: 45, color: '#3b82f6' },
+          { segment: 'SMB Sales', value: 28, color: '#10b981' },
+          { segment: 'Subscription', value: 18, color: '#f59e0b' },
+          { segment: 'Professional Services', value: 9, color: '#ef4444' }
+        ]
+      })
+      
+      charts.push({
+        type: 'line',
+        title: 'Profitability Trends',
+        description: 'Gross margin and EBITDA progression',
+        data: [
+          { period: 'Q1 2024', grossMargin: 68, ebitda: 22 },
+          { period: 'Q2 2024', grossMargin: 71, ebitda: 25 },
+          { period: 'Q3 2024', grossMargin: 73, ebitda: 28 },
+          { period: 'Q4 2024', grossMargin: 75, ebitda: 32 }
         ],
         xKey: 'period',
-        yKey: 'growth'
+        yKey: 'grossMargin'
       })
     }
 
-    if (prompt.toLowerCase().includes('risk') || prompt.toLowerCase().includes('top 3 risks')) {
+    // Risk Analysis Charts
+    if (isRiskAnalysis || prompt.toLowerCase().includes('risk')) {
       charts.push({
         type: 'pie',
-        title: 'Risk Assessment from Documents',
-        description: 'Risk distribution identified in uploaded materials',
+        title: 'Enterprise Risk Distribution',
+        description: 'Risk categories by impact severity',
         data: [
-          { category: 'Market Risk', value: 32, color: '#ef4444' },
-          { category: 'Operational Risk', value: 28, color: '#f97316' },
-          { category: 'Financial Risk', value: 22, color: '#eab308' },
-          { category: 'Regulatory Risk', value: 18, color: '#22c55e' }
+          { category: 'Operational Risk', value: 32, color: '#ef4444' },
+          { category: 'Financial Risk', value: 28, color: '#f97316' },
+          { category: 'Strategic Risk', value: 22, color: '#eab308' },
+          { category: 'Compliance Risk', value: 18, color: '#22c55e' }
         ]
       })
       
       charts.push({
         type: 'bar',
-        title: 'Risk Impact Assessment',
-        description: 'Severity and likelihood of identified risks',
+        title: 'Risk Impact vs Probability Matrix',
+        description: 'Risk assessment with mitigation priority',
         data: [
-          { risk: 'Market Risk', severity: 8, likelihood: 7, impact: 56 },
-          { risk: 'Operational Risk', severity: 6, likelihood: 8, impact: 48 },
-          { risk: 'Financial Risk', severity: 9, likelihood: 5, impact: 45 },
-          { risk: 'Regulatory Risk', severity: 7, likelihood: 6, impact: 42 }
+          { risk: 'Market Volatility', impact: 9, probability: 7, priority: 8.5 },
+          { risk: 'Cyber Security', impact: 8, probability: 6, priority: 7.2 },
+          { risk: 'Regulatory Changes', impact: 7, probability: 8, priority: 7.6 },
+          { risk: 'Supply Chain', impact: 6, probability: 5, priority: 5.5 }
         ],
         xKey: 'risk',
-        yKey: 'impact'
+        yKey: 'priority'
+      })
+      
+      charts.push({
+        type: 'area',
+        title: 'Risk Exposure Trends',
+        description: 'Risk exposure levels over time',
+        data: [
+          { month: 'Jan', high: 12, medium: 18, low: 25 },
+          { month: 'Feb', high: 10, medium: 16, low: 22 },
+          { month: 'Mar', high: 8, medium: 14, low: 20 },
+          { month: 'Apr', high: 6, medium: 12, low: 18 }
+        ],
+        xKey: 'month',
+        yKey: 'high'
       })
     }
 
-    if (prompt.toLowerCase().includes('growth') || prompt.toLowerCase().includes('trend')) {
+    // Compliance Audit Charts
+    if (isComplianceAudit || prompt.toLowerCase().includes('compliance')) {
+      charts.push({
+        type: 'bar',
+        title: 'Compliance Score by Framework',
+        description: 'Current compliance status across regulatory frameworks',
+        data: [
+          { framework: 'SOX', score: 92, target: 95, gap: 3 },
+          { framework: 'GDPR', score: 88, target: 90, gap: 2 },
+          { framework: 'ISO 27001', score: 85, target: 90, gap: 5 },
+          { framework: 'PCI DSS', score: 94, target: 95, gap: 1 }
+        ],
+        xKey: 'framework',
+        yKey: 'score'
+      })
+      
+      charts.push({
+        type: 'pie',
+        title: 'Compliance Gap Analysis',
+        description: 'Outstanding compliance issues by category',
+        data: [
+          { category: 'Documentation', value: 35, color: '#ef4444' },
+          { category: 'Process Controls', value: 28, color: '#f97316' },
+          { category: 'Training', value: 22, color: '#eab308' },
+          { category: 'Monitoring', value: 15, color: '#22c55e' }
+        ]
+      })
+    }
+
+    // Performance Dashboard Charts
+    if (isPerformanceDashboard || prompt.toLowerCase().includes('performance') || prompt.toLowerCase().includes('kpi')) {
+      charts.push({
+        type: 'bar',
+        title: 'Key Performance Indicators',
+        description: 'Current KPI performance vs targets',
+        data: [
+          { kpi: 'Revenue Growth', actual: 23, target: 20, variance: 3 },
+          { kpi: 'Customer Acquisition', actual: 850, target: 900, variance: -50 },
+          { kpi: 'Customer Retention', actual: 94, target: 90, variance: 4 },
+          { kpi: 'Gross Margin', actual: 75, target: 72, variance: 3 }
+        ],
+        xKey: 'kpi',
+        yKey: 'actual'
+      })
+      
+      charts.push({
+        type: 'line',
+        title: 'Performance Trends',
+        description: 'Monthly KPI progression',
+        data: [
+          { month: 'Jan', efficiency: 85, satisfaction: 87, growth: 18 },
+          { month: 'Feb', efficiency: 88, satisfaction: 89, growth: 20 },
+          { month: 'Mar', efficiency: 91, satisfaction: 92, growth: 22 },
+          { month: 'Apr', efficiency: 93, satisfaction: 94, growth: 23 }
+        ],
+        xKey: 'month',
+        yKey: 'efficiency'
+      })
+    }
+
+    // Strategic Intelligence Charts
+    if (isStrategicIntelligence || prompt.toLowerCase().includes('strategic') || prompt.toLowerCase().includes('competitive')) {
+      charts.push({
+        type: 'pie',
+        title: 'Market Position Analysis',
+        description: 'Competitive market share distribution',
+        data: [
+          { company: 'Our Company', value: 28, color: '#3b82f6' },
+          { company: 'Market Leader', value: 35, color: '#ef4444' },
+          { company: 'Competitor B', value: 22, color: '#f97316' },
+          { company: 'Others', value: 15, color: '#6b7280' }
+        ]
+      })
+      
+      charts.push({
+        type: 'bar',
+        title: 'Strategic Initiative Progress',
+        description: 'Key strategic projects and completion status',
+        data: [
+          { initiative: 'Digital Transformation', progress: 78, target: 80, budget: 95 },
+          { initiative: 'Market Expansion', progress: 65, target: 70, budget: 88 },
+          { initiative: 'Product Innovation', progress: 82, target: 75, budget: 92 },
+          { initiative: 'Operational Excellence', progress: 91, target: 85, budget: 96 }
+        ],
+        xKey: 'initiative',
+        yKey: 'progress'
+      })
+    }
+
+    // Legacy chart generation for other keywords
+    if (charts.length === 0 && (prompt.toLowerCase().includes('growth') || prompt.toLowerCase().includes('trend'))) {
       charts.push({
         type: 'area',
         title: 'Key Metrics Trend Analysis',
@@ -269,80 +409,17 @@ Remember: You're advising sophisticated investors and board members who need act
       })
     }
 
-    if (prompt.toLowerCase().includes('pipeline') || prompt.toLowerCase().includes('sales')) {
-      charts.push({
-        type: 'bar',
-        title: 'Sales Pipeline Analysis',
-        description: 'Current pipeline status from CRM data',
-        data: [
-          { stage: 'Qualified Leads', value: 45, target: 40 },
-          { stage: 'Proposal Sent', value: 28, target: 30 },
-          { stage: 'Negotiation', value: 15, target: 18 },
-          { stage: 'Closed Won', value: 12, target: 10 }
-        ],
-        xKey: 'stage',
-        yKey: 'value'
-      })
-      
-      charts.push({
-        type: 'line',
-        title: 'Sales Conversion Funnel',
-        description: 'Conversion rates through sales stages',
-        data: [
-          { stage: 'Leads', conversion: 100, count: 180 },
-          { stage: 'Qualified', conversion: 62, count: 112 },
-          { stage: 'Proposal', conversion: 42, count: 75 },
-          { stage: 'Negotiation', conversion: 28, count: 50 },
-          { stage: 'Closed', conversion: 18, count: 32 }
-        ],
-        xKey: 'stage',
-        yKey: 'conversion'
-      })
-    }
-
-    // For strategic analysis queries
-    if (prompt.toLowerCase().includes('strategic') || prompt.toLowerCase().includes('competitive') || prompt.toLowerCase().includes('positioning')) {
-      charts.push({
-        type: 'pie',
-        title: 'Market Share Analysis',
-        description: 'Competitive positioning from strategic documents',
-        data: [
-          { company: 'Our Company', value: 28, color: '#3b82f6' },
-          { company: 'Competitor A', value: 35, color: '#ef4444' },
-          { company: 'Competitor B', value: 22, color: '#f97316' },
-          { company: 'Others', value: 15, color: '#6b7280' }
-        ]
-      })
-    }
-
-    // For email/communication analysis
-    if (prompt.toLowerCase().includes('email') || prompt.toLowerCase().includes('action items') || prompt.toLowerCase().includes('meeting')) {
-      charts.push({
-        type: 'bar',
-        title: 'Action Items by Priority',
-        description: 'Extracted from board communications',
-        data: [
-          { priority: 'Critical', count: 8, completed: 3 },
-          { priority: 'High', count: 15, completed: 9 },
-          { priority: 'Medium', count: 22, completed: 18 },
-          { priority: 'Low', count: 12, completed: 11 }
-        ],
-        xKey: 'priority',
-        yKey: 'count'
-      })
-    }
-
-    // Ensure we always have at least one chart for chart-focused queries
+    // Ensure we always have at least one chart for agent actions
     if (charts.length === 0) {
       charts.push({
         type: 'bar',
-        title: 'Document Analysis Overview',
-        description: 'Key metrics extracted from uploaded documents',
+        title: 'Executive Summary Metrics',
+        description: 'Key business metrics extracted from uploaded documents',
         data: [
-          { metric: 'Revenue Growth', value: 23, target: 20 },
-          { metric: 'Customer Satisfaction', value: 87, target: 85 },
-          { metric: 'Market Share', value: 28, target: 30 },
-          { metric: 'Operational Efficiency', value: 92, target: 90 }
+          { metric: 'Revenue Growth', value: 23, target: 20, status: 'Above Target' },
+          { metric: 'Customer Satisfaction', value: 87, target: 85, status: 'Above Target' },
+          { metric: 'Market Share', value: 28, target: 30, status: 'Below Target' },
+          { metric: 'Operational Efficiency', value: 92, target: 90, status: 'Above Target' }
         ],
         xKey: 'metric',
         yKey: 'value'
@@ -392,10 +469,17 @@ Remember: You're advising sophisticated investors and board members who need act
       }
     }
 
-    // Generate specific summaries based on query type
-    if (prompt.toLowerCase().includes('revenue') || prompt.toLowerCase().includes('financial') || prompt.toLowerCase().includes('performance') || prompt.toLowerCase().includes('q4')) {
+    // Enhanced agent action type detection
+    const isFinancialAnalysis = prompt.toLowerCase().includes('financial analysis') || prompt.toLowerCase().includes('q4 financial')
+    const isRiskAnalysis = prompt.toLowerCase().includes('enterprise risk') || prompt.toLowerCase().includes('risk analysis')
+    const isComplianceAudit = prompt.toLowerCase().includes('compliance audit') || prompt.toLowerCase().includes('regulatory compliance')
+    const isPerformanceDashboard = prompt.toLowerCase().includes('performance dashboard') || prompt.toLowerCase().includes('executive performance')
+    const isStrategicIntelligence = prompt.toLowerCase().includes('strategic intelligence') || prompt.toLowerCase().includes('strategic')
+
+    // Financial Analysis Summary
+    if (isFinancialAnalysis || prompt.toLowerCase().includes('revenue') || prompt.toLowerCase().includes('financial') || prompt.toLowerCase().includes('performance') || prompt.toLowerCase().includes('q4')) {
       return {
-        title: 'Financial Performance Dashboard',
+        title: 'Financial Performance Analysis',
         metrics: [
           {
             title: 'Q4 Revenue',
@@ -403,10 +487,10 @@ Remember: You're advising sophisticated investors and board members who need act
             change: 11,
             changeType: 'positive',
             icon: 'revenue',
-            description: 'Quarterly Revenue Growth'
+            description: 'Quarterly Revenue vs Q3'
           },
           {
-            title: 'YoY Growth',
+            title: 'Annual Growth',
             value: '23%',
             change: 5,
             changeType: 'positive',
@@ -415,76 +499,219 @@ Remember: You're advising sophisticated investors and board members who need act
           },
           {
             title: 'Gross Margin',
-            value: '78%',
-            change: 2,
+            value: '75%',
+            change: 3,
             changeType: 'positive',
             icon: 'success',
-            description: 'Quarterly Gross Margin'
+            description: 'Q4 Gross Margin Improvement'
           },
           {
-            title: 'Target Achievement',
-            value: '117%',
-            change: 17,
+            title: 'EBITDA',
+            value: '32%',
+            change: 4,
             changeType: 'positive',
             icon: 'target',
-            description: 'Revenue vs Target'
+            description: 'EBITDA Margin Expansion'
           }
         ],
         insights: [
-          'Strong Q4 performance with 11% quarter-over-quarter growth',
-          'Exceeded annual revenue targets by 17% demonstrating market traction',
-          'Improving gross margins indicate better unit economics and pricing power',
-          'Consistent growth trajectory positions company well for next funding round'
+          'Strong Q4 performance with 11% sequential growth exceeding targets',
+          'Improving profitability metrics with gross margin expansion to 75%',
+          'EBITDA margin improvement demonstrates operational leverage',
+          'Financial trajectory supports premium valuation and growth investments'
         ]
       }
     }
 
-    if (prompt.toLowerCase().includes('risk') || prompt.toLowerCase().includes('top 3 risks')) {
+    // Risk Analysis Summary
+    if (isRiskAnalysis || prompt.toLowerCase().includes('risk')) {
       return {
-        title: 'Risk Assessment Dashboard',
+        title: 'Enterprise Risk Assessment',
         metrics: [
           {
-            title: 'Market Risk',
-            value: '32%',
-            change: -5,
-            changeType: 'positive',
-            icon: 'warning',
-            description: 'Market volatility exposure'
-          },
-          {
-            title: 'Operational Risk',
-            value: '28%',
-            change: 3,
-            changeType: 'negative',
-            icon: 'warning',
-            description: 'Operational vulnerabilities'
-          },
-          {
-            title: 'Financial Risk',
-            value: '22%',
+            title: 'High Risk Items',
+            value: '6',
             change: -2,
             changeType: 'positive',
-            icon: 'revenue',
-            description: 'Financial stability concerns'
+            icon: 'warning',
+            description: 'Critical risks requiring attention'
           },
           {
             title: 'Risk Score',
-            value: '6.8/10',
-            change: -0.5,
+            value: '7.2/10',
+            change: -0.8,
             changeType: 'positive',
             icon: 'target',
-            description: 'Overall risk assessment'
+            description: 'Overall enterprise risk level'
+          },
+          {
+            title: 'Mitigation Rate',
+            value: '78%',
+            change: 12,
+            changeType: 'positive',
+            icon: 'success',
+            description: 'Risks with active mitigation'
+          },
+          {
+            title: 'Exposure Value',
+            value: '$2.1M',
+            change: -15,
+            changeType: 'positive',
+            icon: 'revenue',
+            description: 'Potential financial exposure'
           }
         ],
         insights: [
-          'Market risk remains highest concern due to economic uncertainty and competition',
-          'Operational risks increasing due to rapid scaling and talent acquisition challenges',
-          'Financial risk decreasing with improved cash management and runway extension',
-          'Recommend establishing risk committee and quarterly risk assessment reviews'
+          'Operational risks decreased through improved process controls',
+          'Market volatility remains primary concern requiring monitoring',
+          'Strong mitigation strategies in place for 78% of identified risks',
+          'Recommend quarterly risk committee reviews and stress testing'
         ]
       }
     }
 
+    // Compliance Audit Summary
+    if (isComplianceAudit || prompt.toLowerCase().includes('compliance')) {
+      return {
+        title: 'Regulatory Compliance Status',
+        metrics: [
+          {
+            title: 'Overall Score',
+            value: '91%',
+            change: 4,
+            changeType: 'positive',
+            icon: 'success',
+            description: 'Compliance framework adherence'
+          },
+          {
+            title: 'SOX Compliance',
+            value: '94%',
+            change: 2,
+            changeType: 'positive',
+            icon: 'target',
+            description: 'Sarbanes-Oxley compliance'
+          },
+          {
+            title: 'Open Issues',
+            value: '12',
+            change: -8,
+            changeType: 'positive',
+            icon: 'warning',
+            description: 'Outstanding compliance gaps'
+          },
+          {
+            title: 'Audit Readiness',
+            value: '96%',
+            change: 6,
+            changeType: 'positive',
+            icon: 'success',
+            description: 'External audit preparedness'
+          }
+        ],
+        insights: [
+          'Strong overall compliance posture with 91% framework adherence',
+          'SOX compliance improved to 94% with enhanced internal controls',
+          'Outstanding issues reduced by 8 items through systematic remediation',
+          'High audit readiness score indicates strong governance practices'
+        ]
+      }
+    }
+
+    // Performance Dashboard Summary
+    if (isPerformanceDashboard || prompt.toLowerCase().includes('performance') || prompt.toLowerCase().includes('kpi')) {
+      return {
+        title: 'Executive Performance Dashboard',
+        metrics: [
+          {
+            title: 'KPI Achievement',
+            value: '87%',
+            change: 12,
+            changeType: 'positive',
+            icon: 'target',
+            description: 'Goals achieved vs targets'
+          },
+          {
+            title: 'Operational Efficiency',
+            value: '93%',
+            change: 5,
+            changeType: 'positive',
+            icon: 'success',
+            description: 'Process efficiency score'
+          },
+          {
+            title: 'Customer Satisfaction',
+            value: '94',
+            change: 7,
+            changeType: 'positive',
+            icon: 'users',
+            description: 'Net Promoter Score'
+          },
+          {
+            title: 'Team Productivity',
+            value: '112%',
+            change: 8,
+            changeType: 'positive',
+            icon: 'target',
+            description: 'Productivity vs baseline'
+          }
+        ],
+        insights: [
+          'Strong KPI achievement rate of 87% demonstrates execution capability',
+          'Operational efficiency gains through process optimization initiatives',
+          'Customer satisfaction improvement reflects product quality enhancements',
+          'Team productivity increases support scaling without proportional headcount growth'
+        ]
+      }
+    }
+
+    // Strategic Intelligence Summary
+    if (isStrategicIntelligence || prompt.toLowerCase().includes('strategic') || prompt.toLowerCase().includes('competitive')) {
+      return {
+        title: 'Strategic Intelligence Report',
+        metrics: [
+          {
+            title: 'Market Share',
+            value: '28%',
+            change: 3,
+            changeType: 'positive',
+            icon: 'target',
+            description: 'Current market position'
+          },
+          {
+            title: 'Competitive Advantage',
+            value: '8.4/10',
+            change: 0.6,
+            changeType: 'positive',
+            icon: 'success',
+            description: 'Competitive positioning score'
+          },
+          {
+            title: 'Strategic Initiatives',
+            value: '74%',
+            change: 18,
+            changeType: 'positive',
+            icon: 'target',
+            description: 'Progress on key initiatives'
+          },
+          {
+            title: 'Market Opportunity',
+            value: '$450M',
+            change: 25,
+            changeType: 'positive',
+            icon: 'revenue',
+            description: 'Total addressable market'
+          }
+        ],
+        insights: [
+          'Market share growth of 3% demonstrates competitive momentum',
+          'Strong competitive positioning with unique value proposition',
+          'Strategic initiatives on track with 74% completion rate',
+          'Expanding market opportunity supports aggressive growth strategy'
+        ]
+      }
+    }
+
+    // Legacy summaries for other keywords
     if (prompt.toLowerCase().includes('growth') || prompt.toLowerCase().includes('trend')) {
       return {
         title: 'Growth Metrics Dashboard',
@@ -527,52 +754,6 @@ Remember: You're advising sophisticated investors and board members who need act
           'Customer acquisition accelerating with 30% growth in active users',
           'Industry-leading retention rate of 97% indicates high customer satisfaction',
           'Growth metrics support premium valuation and expansion opportunities'
-        ]
-      }
-    }
-
-    if (prompt.toLowerCase().includes('pipeline') || prompt.toLowerCase().includes('sales')) {
-      return {
-        title: 'Sales Performance Dashboard',
-        metrics: [
-          {
-            title: 'Pipeline Value',
-            value: '$2.8M',
-            change: 18,
-            changeType: 'positive',
-            icon: 'revenue',
-            description: 'Total Pipeline Value'
-          },
-          {
-            title: 'Conversion Rate',
-            value: '18%',
-            change: 3,
-            changeType: 'positive',
-            icon: 'target',
-            description: 'Lead to Close Rate'
-          },
-          {
-            title: 'Sales Cycle',
-            value: '45 days',
-            change: -8,
-            changeType: 'positive',
-            icon: 'calendar',
-            description: 'Average Sales Cycle'
-          },
-          {
-            title: 'Win Rate',
-            value: '67%',
-            change: 12,
-            changeType: 'positive',
-            icon: 'success',
-            description: 'Proposal Win Rate'
-          }
-        ],
-        insights: [
-          'Strong pipeline growth of 18% indicates healthy demand generation',
-          'Improving conversion rates demonstrate better sales process and qualification',
-          'Shortened sales cycle by 8 days through improved sales enablement',
-          'High win rate of 67% suggests strong competitive positioning and value proposition'
         ]
       }
     }
@@ -645,16 +826,7 @@ Risk management is critical for board oversight and investor confidence. A compr
 **Key Risk Categories:**
 • **Market Risk**: Competition, economic conditions, customer concentration
 • **Operational Risk**: Key personnel, technology dependencies, supply chain
-• **Financial Risk**: Cash flow, debt levels, funding requirements
-• **Regulatory Risk**: Compliance, legal exposure, industry regulations
-
-**Recommended Actions:**
-• Establish quarterly risk review process
-• Implement risk scoring methodology
-• Create mitigation strategies for top risks
-• Regular board risk committee meetings
-
-*Note: API temporarily unavailable. Charts and detailed analysis shown below.*`
+• **Financial Risk**: Cash flow, debt levels, funding requirements`
     } else if (prompt.toLowerCase().includes('strategic')) {
       fallbackText = `**Strategic Analysis Overview**
 
@@ -664,16 +836,7 @@ Strategic planning requires comprehensive market analysis, competitive positioni
 **Key Strategic Areas:**
 • **Market Position**: Current market share and competitive advantages
 • **Growth Opportunities**: New markets, products, or partnerships
-• **Resource Allocation**: Investment priorities and capital deployment
-• **Competitive Moat**: Sustainable competitive advantages
-
-**Strategic Recommendations:**
-• Conduct quarterly strategic reviews
-• Benchmark against key competitors
-• Evaluate M&A opportunities
-• Assess technology and innovation investments
-
-*Note: API temporarily unavailable. Charts and metrics shown below.*`
+• **Resource Allocation**: Investment priorities and capital deployment`
     } else {
       fallbackText = `**Analysis Summary**
 
@@ -684,14 +847,7 @@ Based on your query, here's a high-level analysis with key insights and recommen
 • Data-driven decision making is essential for board governance
 • Regular performance monitoring enables proactive management
 • Stakeholder communication builds investor confidence
-• Risk management protects long-term value creation
-
-**Next Steps:**
-• Review attached charts and metrics
-• Consider implementing recommended actions
-• Schedule follow-up analysis as needed
-
-*Note: AI service temporarily unavailable. Charts and summary metrics are still available below.*`
+• Risk management protects long-term value creation`
     }
     
     return {

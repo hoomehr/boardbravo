@@ -390,6 +390,10 @@ export default function DashboardPage() {
       createNewChatSession()
     }
 
+    // Check if message contains @agent mention
+    const isAgentMention = currentMessage.toLowerCase().includes('@agent')
+    const cleanMessage = currentMessage.replace(/@agent\s*/gi, '').trim()
+
     const memberMessage: ChatMessage = {
       id: Math.random().toString(36).substr(2, 9),
       type: 'user',
@@ -408,9 +412,96 @@ export default function DashboardPage() {
     )
     setChatSessions(updatedSessions)
     
+    // If @agent mention, process as agent action
+    if (isAgentMention && cleanMessage) {
+      handleAgentInteraction(cleanMessage, memberMessage)
+    }
+    
     // Save to backend
     saveChatSessionsToBackend(updatedSessions)
   }, [currentMessage, currentSessionId, createNewChatSession, chatSessions])
+
+  // Handle @agent interactions
+  const handleAgentInteraction = async (query: string, userMessage: ChatMessage) => {
+    setIsProcessing(true)
+    setProcessingAction('AI Analysis')
+
+    try {
+      const readyDocuments = documents.filter(doc => doc.status === 'ready')
+      const connectedIntegrations = integrations.filter(i => i.status === 'connected')
+      
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: query,
+          documents: readyDocuments,
+          integrations: connectedIntegrations,
+          isAgentMention: true,
+          boardId: currentBoard?.id
+        })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        const agentResponse: ChatMessage = {
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'assistant',
+          content: data.response,
+          timestamp: new Date(),
+          charts: data.charts, // Only include if AI returns chart data
+          summary: data.summary
+        }
+        setChatMessages(prev => [...prev, agentResponse])
+        
+        // Update session with agent response
+        const updatedSessions = chatSessions.map(session => 
+          session.id === currentSessionId 
+            ? { 
+                ...session, 
+                messages: [...session.messages, agentResponse],
+                updatedAt: new Date() 
+              }
+            : session
+        )
+        setChatSessions(updatedSessions)
+        
+        // Save to backend
+        saveChatSessionsToBackend(updatedSessions)
+        
+        console.log('@agent interaction completed')
+      } else {
+        throw new Error(data.error || 'Failed to process @agent request')
+      }
+    } catch (error) {
+      console.error('@agent interaction error:', error)
+      
+      const errorResponse: ChatMessage = {
+        id: Math.random().toString(36).substr(2, 9),
+        type: 'assistant',
+        content: `❌ Sorry, I couldn't process your request. Please try again.`,
+        timestamp: new Date()
+      }
+      setChatMessages(prev => [...prev, errorResponse])
+      
+      // Update session with error message
+      const updatedSessions = chatSessions.map(session => 
+        session.id === currentSessionId 
+          ? { 
+              ...session,
+              messages: [...session.messages, errorResponse],
+              updatedAt: new Date()
+            }
+          : session
+      )
+      setChatSessions(updatedSessions)
+      saveChatSessionsToBackend(updatedSessions)
+    } finally {
+      setIsProcessing(false)
+      setProcessingAction('')
+    }
+  }
 
   // File upload functionality
   const handleFileUpload = () => {
@@ -646,6 +737,26 @@ export default function DashboardPage() {
     })
   }
 
+  // Function to save chat messages as notes
+  const saveMessageAsNote = async (messageContent: string, messageType: 'user' | 'assistant') => {
+    const title = messageType === 'user' 
+      ? `Board Message - ${format(new Date(), 'MMM dd, HH:mm')}`
+      : `AI Response - ${format(new Date(), 'MMM dd, HH:mm')}`
+    
+    const source = messageType === 'user' 
+      ? `Message from ${currentUser.name}`
+      : 'BoardBravo AI Assistant'
+    
+    await saveNote({
+      title: title,
+      content: messageContent,
+      category: 'general',
+      source: source,
+      isPinned: false,
+      tags: messageType === 'user' ? ['user-message'] : ['ai-response']
+    })
+  }
+
   // Agent Actions
   const handleAgentAction = async (actionTitle: string, actionDescription: string) => {
     let targetSessionId = currentSessionId
@@ -699,7 +810,11 @@ export default function DashboardPage() {
           integrations: connectedIntegrations,
           isAgentAction: true,
           actionTitle: actionTitle,
-          boardId: currentBoard?.id
+          boardId: currentBoard?.id,
+          generateCharts: true,
+          includeStatistics: true,
+          chartTypes: ['bar', 'pie', 'line', 'scatter'],
+          requestVisualAnalysis: true
         })
       })
 
@@ -782,12 +897,12 @@ export default function DashboardPage() {
         id: 'financial',
         title: hasDocuments ? 'Q4 Financial Analysis' : 'Financial Analysis',
         description: hasDocuments 
-          ? 'Comprehensive analysis of uploaded financial statements and projections'
-          : 'Analyze financial documents and data',
-        detailedDescription: 'Revenue trends, cost analysis, profitability metrics',
+          ? 'Comprehensive analysis of uploaded financial statements with charts and projections'
+          : 'Analyze financial documents and data with visual charts',
+        detailedDescription: 'Revenue trends, cost analysis, profitability metrics with bar charts and statistics',
         prompt: hasDocuments 
-          ? 'Analyze the uploaded financial documents in detail. Provide comprehensive analysis of revenue trends, cost structures, profitability metrics, cash flow patterns, and create forward-looking projections.'
-          : 'Provide general financial analysis guidance',
+          ? 'Analyze the uploaded financial documents in detail. Create comprehensive analysis with charts showing revenue trends, cost structures, profitability metrics, and cash flow patterns. Include bar charts for year-over-year comparisons, pie charts for expense breakdowns, and line charts for trend analysis. Provide specific statistics and forward-looking projections with visual representations.'
+          : 'Provide general financial analysis guidance with example charts and statistical insights',
         icon: BarChart3,
         color: 'bg-green-50',
         hoverColor: 'hover:bg-green-100',
@@ -799,9 +914,9 @@ export default function DashboardPage() {
       {
         id: 'risk',
         title: 'Enterprise Risk Analysis',
-        description: 'Systematic risk identification and impact assessment',
-        detailedDescription: 'Operational, financial, strategic, and compliance risks',
-        prompt: 'Conduct a comprehensive risk assessment based on all uploaded documents. Identify operational, financial, strategic, and compliance risks.',
+        description: 'Risk identification with impact charts and probability matrices',
+        detailedDescription: 'Operational, financial, strategic, and compliance risks with visual dashboards',
+        prompt: 'Conduct a comprehensive risk assessment based on all uploaded documents. Create visual risk matrices, impact charts, and probability distributions. Generate bar charts showing risk categories, heat maps for risk severity, and statistical analysis of potential impacts. Include specific risk metrics and mitigation recommendations.',
         icon: AlertCircle,
         color: 'bg-red-50',
         hoverColor: 'hover:bg-red-100',
@@ -813,9 +928,9 @@ export default function DashboardPage() {
       {
         id: 'compliance',
         title: 'Regulatory Compliance Audit',
-        description: 'Full compliance review against industry standards',
-        detailedDescription: 'SOX compliance, governance standards, regulatory adherence',
-        prompt: 'Perform a detailed compliance audit of all uploaded documents. Review against relevant regulatory frameworks.',
+        description: 'Compliance review with score charts and gap analysis visuals',
+        detailedDescription: 'SOX compliance, governance standards with visual compliance dashboards',
+        prompt: 'Perform a detailed compliance audit of all uploaded documents. Create compliance score charts, gap analysis visuals, and regulatory adherence metrics. Generate bar charts showing compliance levels across different frameworks, pie charts for compliance categories, and trend analysis. Include specific compliance statistics and improvement recommendations.',
         icon: CheckCircle,
         color: 'bg-blue-50',
         hoverColor: 'hover:bg-blue-100',
@@ -827,9 +942,9 @@ export default function DashboardPage() {
       {
         id: 'performance',
         title: 'Executive Performance Dashboard',
-        description: 'Comprehensive KPI analysis and performance benchmarking',
-        detailedDescription: 'Operational efficiency, strategic goal progress, benchmark comparisons',
-        prompt: 'Create a comprehensive performance analysis from uploaded documents. Extract all KPIs, performance metrics, and operational data.',
+        description: 'KPI analysis with performance charts and benchmarking visuals',
+        detailedDescription: 'Operational efficiency charts, strategic goal progress with visual metrics',
+        prompt: 'Create a comprehensive performance analysis from uploaded documents. Generate KPI dashboards with bar charts showing performance metrics, line charts for trend analysis, and comparison charts against benchmarks. Include operational efficiency statistics, goal achievement metrics, and visual performance scorecards with specific numerical insights.',
         icon: TrendingUp,
         color: 'bg-purple-50',
         hoverColor: 'hover:bg-purple-100',
@@ -841,9 +956,9 @@ export default function DashboardPage() {
       {
         id: 'strategy',
         title: 'Strategic Intelligence Report',
-        description: 'Market positioning analysis and strategic recommendations',
-        detailedDescription: 'Competitive landscape, market opportunities, strategic initiatives',
-        prompt: 'Generate a strategic intelligence report based on all available documents. Analyze market positioning, competitive advantages.',
+        description: 'Market analysis with competitive charts and strategic visuals',
+        detailedDescription: 'Competitive landscape charts, market opportunity visuals with strategic metrics',
+        prompt: 'Generate a strategic intelligence report based on all available documents. Create market positioning charts, competitive analysis visuals, and strategic opportunity matrices. Include bar charts for market share analysis, pie charts for market segments, and trend charts for strategic initiatives. Provide specific market statistics and strategic recommendations with visual support.',
         icon: Zap,
         color: 'bg-orange-50',
         hoverColor: 'hover:bg-orange-100',
@@ -888,9 +1003,9 @@ export default function DashboardPage() {
   const ManualActionModal = () => (
     showManualAction && (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-xl p-4 w-full max-w-lg mx-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold text-gray-900">Custom Agent Action</h3>
+        <div className="bg-white rounded-xl p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-semibold text-gray-900">Additional Agent Actions</h3>
             <button
               onClick={() => setShowManualAction(false)}
               className="text-gray-400 hover:text-gray-600"
@@ -899,40 +1014,205 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                What would you like the AI agent to analyze?
-              </label>
-              <textarea
-                value={manualActionQuery}
-                onChange={(e) => setManualActionQuery(e.target.value)}
-                placeholder="Describe your specific analysis request..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                rows={3}
-              />
-            </div>
-            
-            <div className="flex items-center justify-end space-x-2">
-              <button
-                onClick={() => setShowManualAction(false)}
-                className="px-3 py-2 text-gray-600 hover:text-gray-800 transition-colors text-sm"
-              >
-                Cancel
-              </button>
+          {/* Quick Analysis Actions */}
+          <div className="mb-8">
+            <h4 className="text-lg font-medium text-gray-900 mb-4">Document & Communication Analysis</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <button
                 onClick={() => {
-                  if (manualActionQuery.trim()) {
-                    handleAgentAction('Custom Analysis', manualActionQuery)
-                    setManualActionQuery('')
-                    setShowManualAction(false)
-                  }
+                  handleAgentAction('Document Summary', 'Provide a comprehensive executive summary of all uploaded documents, highlighting key decisions, action items, and financial implications.')
+                  setShowManualAction(false)
                 }}
-                disabled={!manualActionQuery.trim() || isProcessing}
-                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                disabled={isProcessing}
+                className="text-left p-4 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed group shadow-sm hover:shadow-md"
               >
-                {isProcessing ? 'Processing...' : 'Execute Action'}
+                <div className="flex items-center space-x-2 mb-3">
+                  <div className="p-2 rounded-lg bg-blue-100">
+                    <CheckCircle className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <span className="text-sm text-blue-600 uppercase tracking-wide font-semibold">Summary</span>
+                </div>
+                <h5 className="text-sm font-semibold text-gray-900 mb-2">Document Summary</h5>
+                <p className="text-sm text-gray-600">Executive summary of all uploaded documents with key insights</p>
               </button>
+
+              <button
+                onClick={() => {
+                  handleAgentAction('Action Items Extraction', 'Extract and prioritize all action items, decisions, and follow-up tasks from the uploaded documents and conversations.')
+                  setShowManualAction(false)
+                }}
+                disabled={isProcessing}
+                className="text-left p-4 bg-orange-50 hover:bg-orange-100 rounded-lg border border-orange-200 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed group shadow-sm hover:shadow-md"
+              >
+                <div className="flex items-center space-x-2 mb-3">
+                  <div className="p-2 rounded-lg bg-orange-100">
+                    <Plus className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <span className="text-sm text-orange-600 uppercase tracking-wide font-semibold">Tasks</span>
+                </div>
+                <h5 className="text-sm font-semibold text-gray-900 mb-2">Action Items</h5>
+                <p className="text-sm text-gray-600">Extract and prioritize action items from documents</p>
+              </button>
+
+              <button
+                onClick={() => {
+                  handleAgentAction('Board Readiness Check', 'Assess board meeting readiness, document completeness, and identify any gaps or missing information.')
+                  setShowManualAction(false)
+                }}
+                disabled={isProcessing}
+                className="text-left p-4 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed group shadow-sm hover:shadow-md"
+              >
+                <div className="flex items-center space-x-2 mb-3">
+                  <div className="p-2 rounded-lg bg-purple-100">
+                    <AlertCircle className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <span className="text-sm text-purple-600 uppercase tracking-wide font-semibold">Readiness</span>
+                </div>
+                <h5 className="text-sm font-semibold text-gray-900 mb-2">Board Readiness</h5>
+                <p className="text-sm text-gray-600">Check meeting readiness and document completeness</p>
+              </button>
+
+              <button
+                onClick={() => {
+                  handleAgentAction('Stakeholder Communication', 'Analyze communication patterns, sentiment, and key themes from board discussions and email exchanges.')
+                  setShowManualAction(false)
+                }}
+                disabled={isProcessing}
+                className="text-left p-4 bg-cyan-50 hover:bg-cyan-100 rounded-lg border border-cyan-200 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed group shadow-sm hover:shadow-md"
+              >
+                <div className="flex items-center space-x-2 mb-3">
+                  <div className="p-2 rounded-lg bg-cyan-100">
+                    <Users className="w-5 h-5 text-cyan-600" />
+                  </div>
+                  <span className="text-sm text-cyan-600 uppercase tracking-wide font-semibold">Communication</span>
+                </div>
+                <h5 className="text-sm font-semibold text-gray-900 mb-2">Stakeholder Analysis</h5>
+                <p className="text-sm text-gray-600">Communication patterns and sentiment analysis</p>
+              </button>
+            </div>
+          </div>
+
+          {/* Market & Industry Analysis */}
+          <div className="mb-8">
+            <h4 className="text-lg font-medium text-gray-900 mb-4">Market & Industry Intelligence</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button
+                onClick={() => {
+                  handleAgentAction('Market Trends Analysis', 'Analyze industry trends, competitive landscape, and market opportunities based on available data and documents.')
+                  setShowManualAction(false)
+                }}
+                disabled={isProcessing}
+                className="text-left p-4 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed group shadow-sm hover:shadow-md"
+              >
+                <div className="flex items-center space-x-2 mb-3">
+                  <div className="p-2 rounded-lg bg-green-100">
+                    <TrendingUp className="w-5 h-5 text-green-600" />
+                  </div>
+                  <span className="text-sm text-green-600 uppercase tracking-wide font-semibold">Market</span>
+                </div>
+                <h5 className="text-sm font-semibold text-gray-900 mb-2">Market Trends</h5>
+                <p className="text-sm text-gray-600">Industry trends and competitive landscape analysis</p>
+              </button>
+
+              <button
+                onClick={() => {
+                  handleAgentAction('Competitive Benchmarking', 'Compare company performance against industry benchmarks and key competitors across financial and operational metrics.')
+                  setShowManualAction(false)
+                }}
+                disabled={isProcessing}
+                className="text-left p-4 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed group shadow-sm hover:shadow-md"
+              >
+                <div className="flex items-center space-x-2 mb-3">
+                  <div className="p-2 rounded-lg bg-indigo-100">
+                    <BarChart3 className="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <span className="text-sm text-indigo-600 uppercase tracking-wide font-semibold">Benchmark</span>
+                </div>
+                <h5 className="text-sm font-semibold text-gray-900 mb-2">Competitive Analysis</h5>
+                <p className="text-sm text-gray-600">Performance benchmarking against competitors</p>
+              </button>
+
+              <button
+                onClick={() => {
+                  handleAgentAction('Investment Readiness', 'Assess investment readiness, valuation metrics, and prepare data room summary for potential investors.')
+                  setShowManualAction(false)
+                }}
+                disabled={isProcessing}
+                className="text-left p-4 bg-yellow-50 hover:bg-yellow-100 rounded-lg border border-yellow-200 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed group shadow-sm hover:shadow-md"
+              >
+                <div className="flex items-center space-x-2 mb-3">
+                  <div className="p-2 rounded-lg bg-yellow-100">
+                    <Zap className="w-5 h-5 text-yellow-600" />
+                  </div>
+                  <span className="text-sm text-yellow-600 uppercase tracking-wide font-semibold">Investment</span>
+                </div>
+                <h5 className="text-sm font-semibold text-gray-900 mb-2">Investment Readiness</h5>
+                <p className="text-sm text-gray-600">Valuation metrics and investor preparation</p>
+              </button>
+
+              <button
+                onClick={() => {
+                  handleAgentAction('ESG Assessment', 'Evaluate Environmental, Social, and Governance practices and provide ESG scoring and improvement recommendations.')
+                  setShowManualAction(false)
+                }}
+                disabled={isProcessing}
+                className="text-left p-4 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed group shadow-sm hover:shadow-md"
+              >
+                <div className="flex items-center space-x-2 mb-3">
+                  <div className="p-2 rounded-lg bg-emerald-100">
+                    <Building2 className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <span className="text-sm text-emerald-600 uppercase tracking-wide font-semibold">ESG</span>
+                </div>
+                <h5 className="text-sm font-semibold text-gray-900 mb-2">ESG Assessment</h5>
+                <p className="text-sm text-gray-600">Environmental, Social, and Governance evaluation</p>
+              </button>
+            </div>
+          </div>
+
+          {/* Custom Action Section */}
+          <div className="border-t border-gray-200 pt-6">
+            <h4 className="text-lg font-medium text-gray-900 mb-4">Custom Analysis Request</h4>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  What would you like the AI agent to analyze?
+                </label>
+                <textarea
+                  value={manualActionQuery}
+                  onChange={(e) => setManualActionQuery(e.target.value)}
+                  placeholder="Describe your specific analysis request (e.g., 'Analyze customer churn patterns and recommend retention strategies' or 'Compare Q3 vs Q4 performance metrics')..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  rows={4}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-500">
+                  <span className="font-medium">Tip:</span> Be specific about what insights or charts you need
+                </div>
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => setShowManualAction(false)}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (manualActionQuery.trim()) {
+                        handleAgentAction('Custom Analysis', manualActionQuery)
+                        setManualActionQuery('')
+                        setShowManualAction(false)
+                      }
+                    }}
+                    disabled={!manualActionQuery.trim() || isProcessing}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                  >
+                    {isProcessing ? 'Processing...' : 'Execute Analysis'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1016,6 +1296,7 @@ export default function DashboardPage() {
               onMessageChange={handleChatInputChange}
               onAgentAction={handleAgentAction}
               onShowManualAction={() => setShowManualAction(true)}
+              onSaveMessageAsNote={saveMessageAsNote}
               getAgentActions={getAgentActions}
             />
           </div>
