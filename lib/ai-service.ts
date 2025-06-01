@@ -140,12 +140,13 @@ Remember: You're advising sophisticated investors and board members who need act
     // Check if this is a chart-focused query (from sample questions)
     const isChartQuery = this.isChartFocusedQuery(originalPrompt)
     
-    // Generate charts based on actual data when documents are available
-    const shouldGenerateCharts = this.shouldGenerateCharts(originalPrompt)
+    // Only generate charts for specific agent actions, not general @agent mentions
+    const isSpecificAgentAction = originalPrompt.includes('Agent Action:')
+    const shouldGenerateCharts = isSpecificAgentAction && this.shouldGenerateCharts(originalPrompt)
     const charts = shouldGenerateCharts ? this.generateDataDrivenCharts(originalPrompt, hasDocuments) : []
     
-    // Generate summary metrics for investor dashboard
-    const summary = this.generateInvestorSummary(originalPrompt, hasDocuments)
+    // Generate summary metrics for investor dashboard (only for specific agent actions)
+    const summary = isSpecificAgentAction ? this.generateInvestorSummary(originalPrompt, hasDocuments) : undefined
 
     // Limit response text to 650 characters for concise responses
     let responseText = text
@@ -807,10 +808,11 @@ Remember: You're advising sophisticated investors and board members who need act
   private getFallbackResponse(prompt: string, documents?: any[]): AIResponse {
     const hasDocuments = Array.isArray(documents) && documents.length > 0
     
-    // Generate charts and summary even when API fails
-    const shouldGenerateCharts = this.shouldGenerateCharts(prompt)
+    // Only generate charts and summary for specific agent actions, not @agent mentions
+    const isSpecificAgentAction = prompt.includes('Agent Action:')
+    const shouldGenerateCharts = isSpecificAgentAction && this.shouldGenerateCharts(prompt)
     const charts = shouldGenerateCharts ? this.generateDataDrivenCharts(prompt, hasDocuments) : []
-    const summary = this.generateInvestorSummary(prompt, hasDocuments)
+    const summary = isSpecificAgentAction ? this.generateInvestorSummary(prompt, hasDocuments) : undefined
     
     let fallbackText = ""
     
@@ -837,6 +839,17 @@ Strategic planning requires comprehensive market analysis, competitive positioni
 • **Market Position**: Current market share and competitive advantages
 • **Growth Opportunities**: New markets, products, or partnerships
 • **Resource Allocation**: Investment priorities and capital deployment`
+    } else if (prompt.includes('@Agent Request:')) {
+      fallbackText = `I'm here to help with your analysis. Based on your request, I can provide insights on business strategy, financial analysis, risk assessment, and operational planning.
+
+**What I can help with:**
+• Document analysis and summarization
+• Financial performance insights
+• Risk identification and mitigation
+• Strategic planning support
+• Board governance guidance
+
+Please feel free to ask specific questions about your documents or business objectives.`
     } else {
       fallbackText = `**Analysis Summary**
 
