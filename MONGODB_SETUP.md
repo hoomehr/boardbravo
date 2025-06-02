@@ -50,7 +50,7 @@ MONGODB_DB_NAME=boardbravo
 
 For MongoDB Atlas (cloud):
 ```env
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/boardbravo?retryWrites=true&w=majority
+MONGODB_URI=XXXXXXXX
 MONGODB_DB_NAME=boardbravo
 ```
 
