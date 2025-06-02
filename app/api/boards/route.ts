@@ -15,48 +15,67 @@ export async function POST(request: NextRequest) {
     const { board, members, documents, chatSessions, savedNotes } = boardData
 
     if (!board?.id) {
-      return NextResponse.json({ error: 'Board ID is required' }, { status: 400 })
+      return NextResponse.json({ 
+        error: 'Board ID is required' 
+      }, { status: 400 })
     }
 
-    // Create or update board (MongoDB only - no file system)
-    const existingBoard = await DatabaseService.getBoardById(board.id)
+    console.log('Saving board data to MongoDB:', {
+      boardId: board.id,
+      membersCount: members?.length || 0,
+      documentsCount: documents?.length || 0,
+      chatSessionsCount: chatSessions?.length || 0,
+      savedNotesCount: savedNotes?.length || 0
+    })
+
+    // Check if board exists, if not create it
+    let existingBoard = await DatabaseService.getBoardById(board.id)
     
-    // Transform members to the correct format
-    const transformedMembers = (members || []).map(member => ({
-      memberId: member.id,
-      name: member.name,
-      email: member.email,
-      role: member.role,
-      addedAt: member.addedAt ? new Date(member.addedAt) : new Date(),
-      status: member.status || 'active'
-    }))
-    
-    if (existingBoard) {
-      // Update existing board
-      await DatabaseService.updateBoard(board.id, {
-        name: board.name || existingBoard.name,
-        lastActivity: new Date(),
-        settings: board.settings || existingBoard.settings,
-        members: transformedMembers, // Update embedded members
-        metadata: {
-          version: '1.0',
-          documentsCount: documents?.length || 0,
-          membersCount: transformedMembers.length,
-          chatSessionsCount: chatSessions?.length || 0,
-          savedNotesCount: savedNotes?.length || 0
+    if (!existingBoard) {
+      // Convert old member format to new user-reference format
+      const transformedMembers = []
+      
+      if (members && members.length > 0) {
+        for (const member of members) {
+          // Check if user exists, if not create them
+          let user = await DatabaseService.getUserByEmail(member.email || `${member.name}@example.com`)
+          
+          if (!user) {
+            user = await DatabaseService.createUserFromBasicInfo(
+              member.name || `User ${member.id}`,
+              member.email || `${member.name || member.id}@example.com`,
+              member.id
+            )
+          }
+          
+          transformedMembers.push({
+            userId: user.userId,
+            role: member.role || 'Member',
+            addedAt: member.addedAt ? new Date(member.addedAt) : new Date(),
+            addedBy: board.createdBy || 'system',
+            permissions: {
+              canInviteMembers: (member.role || 'Member') === 'Admin',
+              canEditDocuments: (member.role || 'Member') !== 'Viewer',
+              canDeleteDocuments: (member.role || 'Member') === 'Admin',
+              canManageNotes: (member.role || 'Member') !== 'Viewer'
+            },
+            status: member.status || 'active'
+          })
         }
-      })
-    } else {
-      // Create new board with embedded members
-      await DatabaseService.createBoard({
+      }
+
+      existingBoard = await DatabaseService.createBoard({
         boardId: board.id,
         name: board.name || 'Untitled Board',
-        createdBy: board.createdBy || 'unknown',
+        description: board.description,
+        createdBy: board.createdBy || 'system',
         lastActivity: new Date(),
-        members: transformedMembers, // Embed members in board document
-        settings: board.settings || {
+        members: transformedMembers,
+        settings: {
           allowMemberInvites: true,
-          requireApproval: false
+          requireApproval: false,
+          isPublic: false,
+          allowGuestAccess: false
         },
         metadata: {
           version: '1.0',
@@ -81,12 +100,13 @@ export async function POST(request: NextRequest) {
             type: doc.type,
             size: doc.size,
             uploadedAt: doc.uploadedAt ? new Date(doc.uploadedAt) : new Date(),
+            uploadedBy: doc.uploadedBy || board.createdBy || 'system',
             status: doc.status || 'ready',
             extractedText: doc.extractedText,
             metadata: {
               originalName: doc.name,
               mimeType: doc.type,
-              uploadedBy: doc.uploadedBy
+              uploadedBy: doc.uploadedBy || board.createdBy || 'system'
             }
           })
         }
@@ -103,6 +123,7 @@ export async function POST(request: NextRequest) {
             boardId: board.id,
             sessionId: session.id,
             title: session.title,
+            createdBy: session.createdBy || board.createdBy || 'system',
             messages: session.messages || []
           })
         } else {
@@ -127,6 +148,7 @@ export async function POST(request: NextRequest) {
             content: note.content,
             category: note.category || 'general',
             source: note.source,
+            createdBy: note.createdBy || board.createdBy || 'system',
             isPinned: note.isPinned || false,
             tags: note.tags || [],
             charts: note.charts,
@@ -150,9 +172,9 @@ export async function POST(request: NextRequest) {
         boardId: board.id,
         storage: 'mongodb',
         documentsCount: documents?.length || 0,
-        membersCount: transformedMembers.length,
+        membersCount: members?.length || 0,
         savedNotesCount: savedNotes?.length || 0,
-        membersEmbedded: true
+        architecture: 'user_references'
       }
     })
 
@@ -181,13 +203,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform MongoDB documents to match expected frontend format
-    const transformedMembers = boardSummary.members.map(member => ({
-      id: member.memberId,
-      name: member.name,
-      email: member.email,
-      role: member.role,
-      addedAt: member.addedAt,
-      status: member.status
+    // Fix: Use the new user-reference structure
+    const transformedMembers = boardSummary.members.map(memberWithUser => ({
+      id: memberWithUser.userId,
+      name: memberWithUser.user.name,
+      email: memberWithUser.user.email,
+      role: memberWithUser.role,
+      addedAt: memberWithUser.addedAt,
+      status: memberWithUser.status,
+      avatar: memberWithUser.user.avatar,
+      company: memberWithUser.user.company,
+      jobTitle: memberWithUser.user.jobTitle
     }))
 
     const transformedDocuments = boardSummary.documents.map(doc => ({
@@ -197,13 +223,15 @@ export async function GET(request: NextRequest) {
       size: doc.size,
       uploadedAt: doc.uploadedAt,
       status: doc.status,
-      extractedText: doc.extractedText
+      extractedText: doc.extractedText,
+      uploadedBy: doc.uploadedBy
     }))
 
     const transformedChatSessions = boardSummary.chatSessions.map(session => ({
       id: session.sessionId,
       title: session.title,
       messages: session.messages,
+      createdBy: session.createdBy,
       createdAt: session.createdAt,
       updatedAt: session.updatedAt
     }))
@@ -214,6 +242,7 @@ export async function GET(request: NextRequest) {
       content: note.content,
       category: note.category,
       source: note.source,
+      createdBy: note.createdBy,
       createdAt: note.createdAt,
       updatedAt: note.updatedAt,
       isPinned: note.isPinned,
@@ -242,7 +271,8 @@ export async function GET(request: NextRequest) {
         boardId,
         storage: 'mongodb',
         hasDocuments: transformedDocuments.length > 0,
-        membersEmbedded: true,
+        hasChatSessions: transformedChatSessions.length > 0,
+        architecture: 'user_references',
         dataSource: 'mongodb_only'
       }
     })

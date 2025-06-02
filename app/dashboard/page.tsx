@@ -147,30 +147,67 @@ export default function DashboardPage() {
             setDocuments(formattedDocs)
           }
           
-          // Load chat sessions
-          if (boardData.chatSessions && boardData.chatSessions.length > 0) {
-            const formattedSessions = boardData.chatSessions.map((session: any) => ({
-              ...session,
-              createdAt: new Date(session.createdAt),
-              updatedAt: new Date(session.updatedAt),
-              messages: session.messages.map((msg: any) => ({
-                ...msg,
-                timestamp: new Date(msg.timestamp)
+          // Load chat sessions from dedicated API for better reliability
+          try {
+            const chatResponse = await fetch(`/api/boards/${boardData.board?.id || 'board-demo'}/chat-sessions`)
+            if (chatResponse.ok) {
+              const chatData = await chatResponse.json()
+              if (chatData.success && chatData.chatSessions && chatData.chatSessions.length > 0) {
+                // For the list view, we only need basic info
+                const formattedSessions = chatData.chatSessions.map((session: any) => ({
+                  id: session.id,
+                  title: session.title,
+                  createdBy: session.createdBy,
+                  createdAt: new Date(session.createdAt),
+                  updatedAt: new Date(session.updatedAt),
+                  messages: [] // We'll load full messages when switching to a session
+                }))
+                setChatSessions(formattedSessions)
+                
+                console.log('Chat sessions loaded from dedicated API:', {
+                  sessionsCount: formattedSessions.length,
+                  sessions: formattedSessions.map((s: ChatSession) => ({
+                    id: s.id,
+                    title: s.title,
+                    lastUpdated: s.updatedAt
+                  }))
+                })
+              } else {
+                console.log('No chat sessions found in dedicated API')
+              }
+            } else {
+              console.error('Failed to load chat sessions from dedicated API')
+              // Fallback to board data if dedicated API fails
+              if (boardData.chatSessions && boardData.chatSessions.length > 0) {
+                const formattedSessions = boardData.chatSessions.map((session: any) => ({
+                  ...session,
+                  createdAt: new Date(session.createdAt),
+                  updatedAt: new Date(session.updatedAt),
+                  messages: session.messages.map((msg: any) => ({
+                    ...msg,
+                    timestamp: new Date(msg.timestamp)
+                  }))
+                }))
+                setChatSessions(formattedSessions)
+                console.log('Chat sessions loaded from board data fallback:', formattedSessions.length)
+              }
+            }
+          } catch (chatError) {
+            console.error('Error loading chat sessions from dedicated API:', chatError)
+            // Fallback to board data
+            if (boardData.chatSessions && boardData.chatSessions.length > 0) {
+              const formattedSessions = boardData.chatSessions.map((session: any) => ({
+                ...session,
+                createdAt: new Date(session.createdAt),
+                updatedAt: new Date(session.updatedAt),
+                messages: session.messages.map((msg: any) => ({
+                  ...msg,
+                  timestamp: new Date(msg.timestamp)
+                }))
               }))
-            }))
-            setChatSessions(formattedSessions)
-            
-            console.log('Chat sessions loaded:', {
-              sessionsCount: formattedSessions.length,
-              sessions: formattedSessions.map((s: ChatSession) => ({
-                id: s.id,
-                title: s.title,
-                messageCount: s.messages.length,
-                lastUpdated: s.updatedAt
-              }))
-            })
-          } else {
-            console.log('No existing chat sessions found, will create default when needed')
+              setChatSessions(formattedSessions)
+              console.log('Chat sessions loaded from board data fallback after error:', formattedSessions.length)
+            }
           }
           
           // Load saved notes from dedicated endpoint
@@ -284,42 +321,126 @@ export default function DashboardPage() {
   }
 
   // Chat functionality
-  const createNewChatSession = useCallback(() => {
-    const newSession: ChatSession = {
-      id: Math.random().toString(36).substr(2, 9),
-      title: `Chat ${chatSessions.length + 1}`,
-      messages: [
-        {
-          id: '1',
-          type: 'assistant',
-          content: "Hi! I'm your BoardBravo AI assistant. 📊\n\nAttach documents and start analyzing, or connect your data sources to get started!",
-          timestamp: new Date()
+  const createNewChatSession = useCallback(async () => {
+    const sessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const sessionTitle = `Discussion ${chatSessions.length + 1}`
+    
+    try {
+      // Create session using dedicated API
+      const response = await fetch(`/api/boards/${currentBoard?.id || 'board-demo'}/chat-sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: sessionTitle,
+          createdBy: currentUser.id,
+          sessionId: sessionId,
+          initialMessage: "Hi! I'm your BoardBravo AI assistant. 📊\n\nAttach documents and start analyzing, or connect your data sources to get started!"
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.chatSession) {
+          const newSession: ChatSession = {
+            id: data.chatSession.id,
+            title: data.chatSession.title,
+            messages: data.chatSession.messages.map((msg: any) => ({
+              ...msg,
+              timestamp: new Date(msg.timestamp)
+            })),
+            createdAt: new Date(data.chatSession.createdAt),
+            updatedAt: new Date(data.chatSession.updatedAt)
+          }
+
+          setChatSessions(prev => [newSession, ...prev])
+          setCurrentSessionId(newSession.id)
+          setChatMessages(newSession.messages)
+          
+          console.log('New chat session created via API:', {
+            sessionId: newSession.id,
+            totalSessions: chatSessions.length + 1
+          })
+          
+          return
         }
-      ],
-      createdAt: new Date(),
-      updatedAt: new Date()
+      }
+      
+      throw new Error('Failed to create session via API')
+    } catch (error) {
+      console.error('Error creating session via API, falling back to local:', error)
+      
+      // Fallback to local creation
+      const newSession: ChatSession = {
+        id: sessionId,
+        title: sessionTitle,
+        messages: [
+          {
+            id: '1',
+            type: 'assistant',
+            content: "Hi! I'm your BoardBravo AI assistant. 📊\n\nAttach documents and start analyzing, or connect your data sources to get started!",
+            timestamp: new Date()
+          }
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+
+      setChatSessions(prev => [newSession, ...prev])
+      setCurrentSessionId(newSession.id)
+      setChatMessages(newSession.messages)
+      
+      console.log('New chat session created locally:', {
+        sessionId: newSession.id,
+        totalSessions: chatSessions.length + 1
+      })
+      
+      // Save to backend via boards API as fallback
+      saveChatSessionsToBackend([newSession, ...chatSessions])
     }
+  }, [chatSessions.length, chatSessions, currentBoard?.id, currentUser.id])
 
-    setChatSessions(prev => [newSession, ...prev])
-    setCurrentSessionId(newSession.id)
-    setChatMessages(newSession.messages)
-    
-    console.log('New chat session created:', {
-      sessionId: newSession.id,
-      totalSessions: chatSessions.length + 1
-    })
-    
-    // Save to backend immediately
-    saveChatSessionsToBackend([newSession, ...chatSessions])
-  }, [chatSessions.length, chatSessions])
-
-  const switchToSession = useCallback((sessionId: string) => {
+  const switchToSession = useCallback(async (sessionId: string) => {
     const session = chatSessions.find(s => s.id === sessionId)
     if (session) {
       setCurrentSessionId(sessionId)
-      setChatMessages(session.messages)
+      
+      // If messages are already loaded, use them
+      if (session.messages && session.messages.length > 0) {
+        setChatMessages(session.messages)
+      } else {
+        // Load full messages from dedicated API
+        try {
+          const response = await fetch(`/api/boards/${currentBoard?.id || 'board-demo'}/chat-sessions/${sessionId}`)
+          if (response.ok) {
+            const data = await response.json()
+            if (data.success && data.chatSession) {
+              const formattedMessages = data.chatSession.messages.map((msg: any) => ({
+                ...msg,
+                timestamp: new Date(msg.timestamp)
+              }))
+              setChatMessages(formattedMessages)
+              
+              // Update the session in state with loaded messages
+              const updatedSessions = chatSessions.map(s => 
+                s.id === sessionId 
+                  ? { ...s, messages: formattedMessages }
+                  : s
+              )
+              setChatSessions(updatedSessions)
+              
+              console.log(`Loaded ${formattedMessages.length} messages for session ${sessionId}`)
+            }
+          } else {
+            console.error('Failed to load session messages')
+            setChatMessages([])
+          }
+        } catch (error) {
+          console.error('Error loading session messages:', error)
+          setChatMessages([])
+        }
+      }
     }
-  }, [chatSessions])
+  }, [chatSessions, currentBoard?.id])
 
   const deleteSession = useCallback((sessionId: string) => {
     const updatedSessions = chatSessions.filter(s => s.id !== sessionId)
