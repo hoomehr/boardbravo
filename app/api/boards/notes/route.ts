@@ -1,37 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile, readFile, mkdir } from 'fs/promises'
-import path from 'path'
-import { existsSync } from 'fs'
+import { DatabaseService } from '@/lib/database-service'
+import { SavedNoteDocument } from '@/lib/models'
 
-interface SavedNote {
+interface SavedNoteInput {
   id: string
   title: string
   content: string
   category: 'financial' | 'risk' | 'compliance' | 'performance' | 'strategy' | 'general'
   source?: string
-  createdAt: string
-  updatedAt: string
   isPinned: boolean
   tags: string[]
-  charts?: any[] // Store chart data from AI responses
-  summary?: any // Store summary metrics from AI responses
-}
-
-interface NotesData {
-  notes: SavedNote[]
-  metadata: {
-    version: string
-    lastUpdated: string
-    totalNotes: number
-    categories: Record<string, number>
-  }
-  history: {
-    timestamp: string
-    action: 'create' | 'update' | 'delete' | 'pin' | 'unpin'
-    noteId: string
-    noteTitle: string
-    details?: string
-  }[]
+  charts?: any[]
+  summary?: any
 }
 
 export async function POST(request: NextRequest) {
@@ -42,122 +22,145 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Board ID is required' }, { status: 400 })
     }
 
-    // Create board-specific storage directory
-    const storageDir = path.join(process.cwd(), 'storage')
-    const boardDir = path.join(storageDir, 'boards', boardId)
-    
-    try {
-      await mkdir(boardDir, { recursive: true })
-    } catch (error) {
-      console.error('Error creating board directory:', error)
+    if (!notes || !Array.isArray(notes)) {
+      return NextResponse.json({ error: 'Notes array is required' }, { status: 400 })
     }
 
-    // Load existing notes data to preserve history
-    const notesPath = path.join(boardDir, 'notes.json')
-    let existingData: NotesData = {
-      notes: [],
-      metadata: {
-        version: '1.0',
-        lastUpdated: new Date().toISOString(),
-        totalNotes: 0,
-        categories: {}
-      },
-      history: []
+    // Check if board exists
+    const board = await DatabaseService.getBoardById(boardId)
+    if (!board) {
+      return NextResponse.json({
+        error: 'Board not found',
+        boardId
+      }, { status: 404 })
     }
 
-    if (existsSync(notesPath)) {
+    // Get existing notes to compare for changes
+    const existingNotes = await DatabaseService.getBoardSavedNotes(boardId)
+    const existingNotesMap = new Map(existingNotes.map(note => [note.noteId, note]))
+
+    let createdCount = 0
+    let updatedCount = 0
+    let errors: string[] = []
+
+    // Process each note
+    for (const noteInput of notes as SavedNoteInput[]) {
       try {
-        const existingRaw = await readFile(notesPath, 'utf8')
-        existingData = JSON.parse(existingRaw)
+        // Validate required fields
+        if (!noteInput.id || !noteInput.title || !noteInput.content) {
+          errors.push(`Note ${noteInput.id || 'unknown'}: Missing required fields (id, title, content)`)
+          continue
+        }
+
+        // Validate category
+        const validCategories = ['financial', 'risk', 'compliance', 'performance', 'strategy', 'general']
+        if (!validCategories.includes(noteInput.category)) {
+          errors.push(`Note ${noteInput.id}: Invalid category. Must be one of: ${validCategories.join(', ')}`)
+          continue
+        }
+
+        const existingNote = existingNotesMap.get(noteInput.id)
+
+        if (existingNote) {
+          // Update existing note
+          const success = await DatabaseService.updateSavedNote(boardId, noteInput.id, {
+            title: noteInput.title.trim(),
+            content: noteInput.content.trim(),
+            category: noteInput.category,
+            source: noteInput.source,
+            isPinned: noteInput.isPinned || false,
+            tags: noteInput.tags || [],
+            charts: noteInput.charts,
+            summary: noteInput.summary
+          })
+          
+          if (success) {
+            updatedCount++
+          } else {
+            errors.push(`Note ${noteInput.id}: Failed to update`)
+          }
+        } else {
+          // Create new note
+          await DatabaseService.createSavedNote({
+            boardId,
+            noteId: noteInput.id,
+            title: noteInput.title.trim(),
+            content: noteInput.content.trim(),
+            category: noteInput.category,
+            source: noteInput.source,
+            isPinned: noteInput.isPinned || false,
+            tags: noteInput.tags || [],
+            charts: noteInput.charts,
+            summary: noteInput.summary
+          })
+          createdCount++
+        }
       } catch (error) {
-        console.error('Error reading existing notes:', error)
+        console.error(`Error processing note ${noteInput.id}:`, error)
+        errors.push(`Note ${noteInput.id}: ${error instanceof Error ? error.message : 'Unknown error'}`)
       }
     }
 
+    // Remove notes that are no longer in the input array
+    const inputNoteIds = new Set(notes.map((n: SavedNoteInput) => n.id))
+    let deletedCount = 0
+    
+    for (const existingNote of existingNotes) {
+      if (!inputNoteIds.has(existingNote.noteId)) {
+        const success = await DatabaseService.deleteSavedNote(boardId, existingNote.noteId)
+        if (success) {
+          deletedCount++
+        } else {
+          errors.push(`Note ${existingNote.noteId}: Failed to delete`)
+        }
+      }
+    }
+
+    // Update board metadata
+    await DatabaseService.updateBoardMetadata(boardId)
+
+    // Get updated notes for summary
+    const updatedNotes = await DatabaseService.getBoardSavedNotes(boardId)
+    
     // Calculate category counts
     const categories: Record<string, number> = {}
-    notes.forEach((note: SavedNote) => {
+    updatedNotes.forEach(note => {
       categories[note.category] = (categories[note.category] || 0) + 1
     })
 
-    // Detect changes for history tracking
-    const newHistory = [...(existingData.history || [])]
-    const existingNotes = existingData.notes || []
-    
-    // Track new notes
-    notes.forEach((note: SavedNote) => {
-      const existing = existingNotes.find(n => n.id === note.id)
-      if (!existing) {
-        newHistory.push({
-          timestamp: new Date().toISOString(),
-          action: 'create',
-          noteId: note.id,
-          noteTitle: note.title,
-          details: `Created in ${note.category} category`
-        })
-      } else if (existing.updatedAt !== note.updatedAt) {
-        newHistory.push({
-          timestamp: new Date().toISOString(),
-          action: 'update',
-          noteId: note.id,
-          noteTitle: note.title,
-          details: `Updated content or category`
-        })
-      } else if (existing.isPinned !== note.isPinned) {
-        newHistory.push({
-          timestamp: new Date().toISOString(),
-          action: note.isPinned ? 'pin' : 'unpin',
-          noteId: note.id,
-          noteTitle: note.title
-        })
-      }
-    })
-
-    // Track deleted notes
-    existingNotes.forEach((existing: SavedNote) => {
-      if (!notes.find((n: SavedNote) => n.id === existing.id)) {
-        newHistory.push({
-          timestamp: new Date().toISOString(),
-          action: 'delete',
-          noteId: existing.id,
-          noteTitle: existing.title,
-          details: `Deleted from ${existing.category} category`
-        })
-      }
-    })
-
-    // Keep only last 100 history entries
-    const trimmedHistory = newHistory.slice(-100)
-
-    // Prepare notes data
-    const notesData: NotesData = {
-      notes: notes,
+    const response: any = {
+      success: true,
+      message: `Notes processed successfully. Created: ${createdCount}, Updated: ${updatedCount}, Deleted: ${deletedCount}`,
       metadata: {
         version: '1.0',
         lastUpdated: new Date().toISOString(),
-        totalNotes: notes.length,
+        totalNotes: updatedNotes.length,
         categories: categories
       },
-      history: trimmedHistory
+      summary: {
+        created: createdCount,
+        updated: updatedCount,
+        deleted: deletedCount,
+        total: updatedNotes.length
+      },
+      storageInfo: {
+        boardId,
+        source: 'mongodb'
+      }
     }
 
-    // Save notes data
-    await writeFile(notesPath, JSON.stringify(notesData, null, 2))
+    if (errors.length > 0) {
+      response.warnings = errors
+    }
 
-    // Create timestamped backup
-    const backupPath = path.join(boardDir, `notes-backup-${Date.now()}.json`)
-    await writeFile(backupPath, JSON.stringify(notesData, null, 2))
-
-    return NextResponse.json({
-      success: true,
-      message: 'Notes saved successfully',
-      metadata: notesData.metadata,
-      historyEntries: trimmedHistory.length
-    })
+    return NextResponse.json(response)
 
   } catch (error) {
     console.error('Error saving notes:', error)
-    return NextResponse.json({ error: 'Failed to save notes' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Failed to save notes',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }
 
@@ -166,34 +169,211 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const boardId = searchParams.get('boardId') || 'board-demo'
 
-    const storageDir = path.join(process.cwd(), 'storage')
-    const boardDir = path.join(storageDir, 'boards', boardId)
-    const notesPath = path.join(boardDir, 'notes.json')
-
-    if (!existsSync(notesPath)) {
+    // Check if board exists
+    const board = await DatabaseService.getBoardById(boardId)
+    if (!board) {
       return NextResponse.json({
-        success: true,
-        notes: [],
-        metadata: {
-          version: '1.0',
-          lastUpdated: new Date().toISOString(),
-          totalNotes: 0,
-          categories: {}
-        },
-        history: []
-      })
+        error: 'Board not found',
+        boardId
+      }, { status: 404 })
     }
 
-    const notesRaw = await readFile(notesPath, 'utf8')
-    const notesData: NotesData = JSON.parse(notesRaw)
+    // Get notes from MongoDB
+    const notes = await DatabaseService.getBoardSavedNotes(boardId)
+
+    // Transform to expected frontend format
+    const transformedNotes = notes.map(note => ({
+      id: note.noteId,
+      title: note.title,
+      content: note.content,
+      category: note.category,
+      source: note.source,
+      createdAt: note.createdAt.toISOString(),
+      updatedAt: note.updatedAt.toISOString(),
+      isPinned: note.isPinned,
+      tags: note.tags,
+      charts: note.charts,
+      summary: note.summary
+    }))
+
+    // Calculate category counts
+    const categories: Record<string, number> = {}
+    transformedNotes.forEach(note => {
+      categories[note.category] = (categories[note.category] || 0) + 1
+    })
 
     return NextResponse.json({
       success: true,
-      ...notesData
+      notes: transformedNotes,
+      metadata: {
+        version: '1.0',
+        lastUpdated: new Date().toISOString(),
+        totalNotes: transformedNotes.length,
+        categories: categories
+      },
+      storageInfo: {
+        boardId,
+        source: 'mongodb',
+        hasNotes: transformedNotes.length > 0
+      }
     })
 
   } catch (error) {
     console.error('Error loading notes:', error)
-    return NextResponse.json({ error: 'Failed to load notes' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Failed to load notes',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
+  }
+}
+
+// DELETE - Remove a specific note
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const boardId = searchParams.get('boardId')
+    const noteId = searchParams.get('noteId')
+
+    if (!boardId || !noteId) {
+      return NextResponse.json({
+        error: 'Missing required parameters: boardId and noteId'
+      }, { status: 400 })
+    }
+
+    // Check if board exists
+    const board = await DatabaseService.getBoardById(boardId)
+    if (!board) {
+      return NextResponse.json({
+        error: 'Board not found',
+        boardId
+      }, { status: 404 })
+    }
+
+    // Check if note exists
+    const existingNote = await DatabaseService.getSavedNoteById(boardId, noteId)
+    if (!existingNote) {
+      return NextResponse.json({
+        error: 'Note not found',
+        noteId
+      }, { status: 404 })
+    }
+
+    // Delete note
+    const success = await DatabaseService.deleteSavedNote(boardId, noteId)
+    
+    if (!success) {
+      return NextResponse.json({
+        error: 'Failed to delete note'
+      }, { status: 500 })
+    }
+
+    // Update board metadata
+    await DatabaseService.updateBoardMetadata(boardId)
+
+    return NextResponse.json({
+      success: true,
+      message: 'Note deleted successfully',
+      deletedNote: {
+        id: existingNote.noteId,
+        title: existingNote.title
+      },
+      boardId,
+      storageInfo: {
+        source: 'mongodb'
+      }
+    })
+
+  } catch (error) {
+    console.error('Error deleting note:', error)
+    return NextResponse.json({
+      error: 'Failed to delete note',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
+  }
+}
+
+// PUT - Update a specific note
+export async function PUT(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const boardId = searchParams.get('boardId')
+    const noteId = searchParams.get('noteId')
+
+    if (!boardId || !noteId) {
+      return NextResponse.json({
+        error: 'Missing required parameters: boardId and noteId'
+      }, { status: 400 })
+    }
+
+    const updates = await request.json()
+
+    // Check if board exists
+    const board = await DatabaseService.getBoardById(boardId)
+    if (!board) {
+      return NextResponse.json({
+        error: 'Board not found',
+        boardId
+      }, { status: 404 })
+    }
+
+    // Check if note exists
+    const existingNote = await DatabaseService.getSavedNoteById(boardId, noteId)
+    if (!existingNote) {
+      return NextResponse.json({
+        error: 'Note not found',
+        noteId
+      }, { status: 404 })
+    }
+
+    // Validate category if provided
+    if (updates.category) {
+      const validCategories = ['financial', 'risk', 'compliance', 'performance', 'strategy', 'general']
+      if (!validCategories.includes(updates.category)) {
+        return NextResponse.json({
+          error: `Invalid category. Must be one of: ${validCategories.join(', ')}`
+        }, { status: 400 })
+      }
+    }
+
+    // Update note
+    const success = await DatabaseService.updateSavedNote(boardId, noteId, updates)
+    
+    if (!success) {
+      return NextResponse.json({
+        error: 'Failed to update note'
+      }, { status: 500 })
+    }
+
+    // Get updated note
+    const updatedNote = await DatabaseService.getSavedNoteById(boardId, noteId)
+
+    return NextResponse.json({
+      success: true,
+      message: 'Note updated successfully',
+      note: updatedNote ? {
+        id: updatedNote.noteId,
+        title: updatedNote.title,
+        content: updatedNote.content,
+        category: updatedNote.category,
+        source: updatedNote.source,
+        createdAt: updatedNote.createdAt.toISOString(),
+        updatedAt: updatedNote.updatedAt.toISOString(),
+        isPinned: updatedNote.isPinned,
+        tags: updatedNote.tags,
+        charts: updatedNote.charts,
+        summary: updatedNote.summary
+      } : null,
+      boardId,
+      storageInfo: {
+        source: 'mongodb'
+      }
+    })
+
+  } catch (error) {
+    console.error('Error updating note:', error)
+    return NextResponse.json({
+      error: 'Failed to update note',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 } 

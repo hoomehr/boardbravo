@@ -1,52 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { readFile, writeFile, mkdir } from 'fs/promises'
-import path from 'path'
-import { existsSync } from 'fs'
+import { DatabaseService } from '@/lib/database-service'
+import { BoardMember } from '@/lib/models'
 
-interface BoardMember {
-  id: string
-  name: string
-  email: string
-  role: string
-  addedAt: Date
-  status: 'active' | 'pending' | 'inactive'
-}
-
-interface BoardData {
-  board: any
-  members: BoardMember[]
-  documents: any[]
-  chatSessions: any[]
-  savedNotes?: any[]
-  metadata?: any
-}
-
-// GET - Fetch all board members
+// GET - Fetch all board members with user details
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const boardId = params.id
-    const storageDir = path.join(process.cwd(), 'storage')
-    const boardDir = path.join(storageDir, 'boards', boardId)
-    const boardDataPath = path.join(boardDir, 'board-data.json')
 
-    if (!existsSync(boardDataPath)) {
+    // Check if board exists
+    const board = await DatabaseService.getBoardById(boardId)
+    if (!board) {
       return NextResponse.json({
         error: 'Board not found',
         boardId
       }, { status: 404 })
     }
 
-    const boardDataRaw = await readFile(boardDataPath, 'utf8')
-    const boardData: BoardData = JSON.parse(boardDataRaw)
+    // Get board members with full user details
+    const membersWithUsers = await DatabaseService.getBoardMembersWithUserDetails(boardId)
 
     return NextResponse.json({
       success: true,
-      members: boardData.members || [],
+      members: membersWithUsers.map(memberWithUser => ({
+        userId: memberWithUser.userId,
+        role: memberWithUser.role,
+        addedAt: memberWithUser.addedAt,
+        addedBy: memberWithUser.addedBy,
+        permissions: memberWithUser.permissions,
+        status: memberWithUser.status,
+        user: {
+          id: memberWithUser.user.userId,
+          name: memberWithUser.user.name,
+          email: memberWithUser.user.email,
+          avatar: memberWithUser.user.avatar,
+          bio: memberWithUser.user.bio,
+          company: memberWithUser.user.company,
+          department: memberWithUser.user.department,
+          jobTitle: memberWithUser.user.jobTitle,
+          location: memberWithUser.user.location,
+          status: memberWithUser.user.status,
+          lastLoginAt: memberWithUser.user.lastLoginAt,
+          emailVerified: memberWithUser.user.emailVerified
+        }
+      })),
       boardId,
-      membersCount: boardData.members?.length || 0
+      membersCount: membersWithUsers.length,
+      storageInfo: {
+        source: 'mongodb',
+        userReferences: true
+      }
     })
 
   } catch (error) {
@@ -65,87 +70,124 @@ export async function POST(
 ) {
   try {
     const boardId = params.id
-    const { name, email, role, adminUserId } = await request.json()
+    const { userId, email, name, role, adminUserId, permissions } = await request.json()
 
     // Validate required fields
-    if (!name || !email || !role) {
+    if (!role || !adminUserId) {
       return NextResponse.json({
-        error: 'Missing required fields: name, email, and role are required'
+        error: 'Missing required fields: role and adminUserId are required'
+      }, { status: 400 })
+    }
+
+    // Must provide either userId or (email and name) to add a member
+    if (!userId && (!email || !name)) {
+      return NextResponse.json({
+        error: 'Must provide either userId or both email and name'
       }, { status: 400 })
     }
 
     // Validate role
-    if (!['Member', 'Admin'].includes(role)) {
+    if (!['Member', 'Admin', 'Viewer'].includes(role)) {
       return NextResponse.json({
-        error: 'Invalid role. Must be "Member" or "Admin"'
+        error: 'Invalid role. Must be "Member", "Admin", or "Viewer"'
       }, { status: 400 })
     }
 
-    const storageDir = path.join(process.cwd(), 'storage')
-    const boardDir = path.join(storageDir, 'boards', boardId)
-    const boardDataPath = path.join(boardDir, 'board-data.json')
-
-    if (!existsSync(boardDataPath)) {
+    // Check if board exists
+    const board = await DatabaseService.getBoardById(boardId)
+    if (!board) {
       return NextResponse.json({
         error: 'Board not found',
         boardId
       }, { status: 404 })
     }
 
-    const boardDataRaw = await readFile(boardDataPath, 'utf8')
-    const boardData: BoardData = JSON.parse(boardDataRaw)
-
     // Check if requesting user is admin
-    const requestingUser = boardData.members?.find(m => m.id === adminUserId)
-    if (!requestingUser || requestingUser.role !== 'Admin') {
+    const isAdmin = await DatabaseService.isBoardAdmin(boardId, adminUserId)
+    if (!isAdmin) {
       return NextResponse.json({
         error: 'Unauthorized. Only admins can add members'
       }, { status: 403 })
     }
 
-    // Check if email already exists
-    const existingMember = boardData.members?.find(m => m.email.toLowerCase() === email.toLowerCase())
+    let targetUserId = userId
+
+    // If no userId provided, find or create user
+    if (!targetUserId && email) {
+      // Check if user already exists
+      let user = await DatabaseService.getUserByEmail(email)
+      
+      if (!user) {
+        // Create new user
+        user = await DatabaseService.createUserFromBasicInfo(name, email)
+      }
+      
+      targetUserId = user.userId
+    }
+
+    // Check if user is already a member
+    const existingMember = await DatabaseService.getBoardMember(boardId, targetUserId)
     if (existingMember) {
       return NextResponse.json({
-        error: 'A member with this email already exists'
+        error: 'User is already a member of this board'
       }, { status: 409 })
     }
 
     // Create new member
     const newMember: BoardMember = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
+      userId: targetUserId,
       role,
       addedAt: new Date(),
+      addedBy: adminUserId,
+      permissions: permissions || {
+        canInviteMembers: role === 'Admin',
+        canEditDocuments: role !== 'Viewer',
+        canDeleteDocuments: role === 'Admin',
+        canManageNotes: role !== 'Viewer'
+      },
       status: 'active'
     }
 
-    // Add member to board
-    const updatedMembers = [...(boardData.members || []), newMember]
-    const updatedBoardData: BoardData = {
-      ...boardData,
-      members: updatedMembers,
-      metadata: {
-        ...boardData.metadata,
-        lastUpdated: new Date().toISOString(),
-        membersCount: updatedMembers.length
-      }
+    // Add member to board using DatabaseService
+    const success = await DatabaseService.addBoardMember(boardId, newMember)
+    
+    if (!success) {
+      return NextResponse.json({
+        error: 'Failed to add member to board'
+      }, { status: 500 })
     }
 
-    // Save updated data
-    await writeFile(boardDataPath, JSON.stringify(updatedBoardData, null, 2))
+    // Update board metadata
+    await DatabaseService.updateBoardMetadata(boardId)
 
-    // Create backup
-    const backupPath = path.join(boardDir, `backup-${Date.now()}.json`)
-    await writeFile(backupPath, JSON.stringify(updatedBoardData, null, 2))
+    // Get the user details for response
+    const user = await DatabaseService.getUserById(targetUserId)
 
     return NextResponse.json({
       success: true,
       message: 'Member added successfully',
-      member: newMember,
+      member: {
+        userId: newMember.userId,
+        role: newMember.role,
+        addedAt: newMember.addedAt,
+        addedBy: newMember.addedBy,
+        permissions: newMember.permissions,
+        status: newMember.status,
+        user: {
+          id: user!.userId,
+          name: user!.name,
+          email: user!.email,
+          avatar: user!.avatar,
+          company: user!.company,
+          jobTitle: user!.jobTitle,
+          status: user!.status
+        }
+      },
       boardId,
-      totalMembers: updatedMembers.length
+      storageInfo: {
+        source: 'mongodb',
+        userReferences: true
+      }
     })
 
   } catch (error) {
@@ -165,81 +207,84 @@ export async function DELETE(
   try {
     const boardId = params.id
     const { searchParams } = new URL(request.url)
-    const memberIdToRemove = searchParams.get('memberId')
+    const userIdToRemove = searchParams.get('userId')
     const adminUserId = searchParams.get('adminUserId')
 
-    if (!memberIdToRemove || !adminUserId) {
+    if (!userIdToRemove || !adminUserId) {
       return NextResponse.json({
-        error: 'Missing required parameters: memberId and adminUserId'
+        error: 'Missing required parameters: userId and adminUserId'
       }, { status: 400 })
     }
 
-    const storageDir = path.join(process.cwd(), 'storage')
-    const boardDir = path.join(storageDir, 'boards', boardId)
-    const boardDataPath = path.join(boardDir, 'board-data.json')
-
-    if (!existsSync(boardDataPath)) {
+    // Check if board exists
+    const board = await DatabaseService.getBoardById(boardId)
+    if (!board) {
       return NextResponse.json({
         error: 'Board not found',
         boardId
       }, { status: 404 })
     }
 
-    const boardDataRaw = await readFile(boardDataPath, 'utf8')
-    const boardData: BoardData = JSON.parse(boardDataRaw)
-
     // Check if requesting user is admin
-    const requestingUser = boardData.members?.find(m => m.id === adminUserId)
-    if (!requestingUser || requestingUser.role !== 'Admin') {
+    const isAdmin = await DatabaseService.isBoardAdmin(boardId, adminUserId)
+    if (!isAdmin) {
       return NextResponse.json({
         error: 'Unauthorized. Only admins can remove members'
       }, { status: 403 })
     }
 
     // Prevent self-removal
-    if (memberIdToRemove === adminUserId) {
+    if (userIdToRemove === adminUserId) {
       return NextResponse.json({
         error: 'Cannot remove yourself from the board'
       }, { status: 400 })
     }
 
-    // Find and remove member
-    const memberToRemove = boardData.members?.find(m => m.id === memberIdToRemove)
+    // Check if member exists
+    const memberToRemove = await DatabaseService.getBoardMember(boardId, userIdToRemove)
     if (!memberToRemove) {
       return NextResponse.json({
         error: 'Member not found',
-        memberId: memberIdToRemove
+        userId: userIdToRemove
       }, { status: 404 })
     }
 
-    const updatedMembers = boardData.members?.filter(m => m.id !== memberIdToRemove) || []
-    const updatedBoardData: BoardData = {
-      ...boardData,
-      members: updatedMembers,
-      metadata: {
-        ...boardData.metadata,
-        lastUpdated: new Date().toISOString(),
-        membersCount: updatedMembers.length
-      }
+    // Get user details before removal
+    const user = await DatabaseService.getUserById(userIdToRemove)
+
+    // Remove member from board
+    const success = await DatabaseService.removeBoardMember(boardId, userIdToRemove)
+    
+    if (!success) {
+      return NextResponse.json({
+        error: 'Failed to remove member from board'
+      }, { status: 500 })
     }
 
-    // Save updated data
-    await writeFile(boardDataPath, JSON.stringify(updatedBoardData, null, 2))
+    // Update board metadata
+    await DatabaseService.updateBoardMetadata(boardId)
 
-    // Create backup
-    const backupPath = path.join(boardDir, `backup-${Date.now()}.json`)
-    await writeFile(backupPath, JSON.stringify(updatedBoardData, null, 2))
+    // Get updated member count
+    const remainingMembers = await DatabaseService.getBoardMembers(boardId)
 
     return NextResponse.json({
       success: true,
       message: 'Member removed successfully',
       removedMember: {
-        id: memberToRemove.id,
-        name: memberToRemove.name,
-        email: memberToRemove.email
+        userId: memberToRemove.userId,
+        role: memberToRemove.role,
+        user: user ? {
+          id: user.userId,
+          name: user.name,
+          email: user.email
+        } : null
       },
       boardId,
-      totalMembers: updatedMembers.length
+      remainingMembers: remainingMembers.length,
+      storageInfo: {
+        source: 'mongodb',
+        userReferences: true
+      }
     })
 
   } catch (error) {
@@ -251,84 +296,105 @@ export async function DELETE(
   }
 }
 
-// PUT - Update a board member (Admin only)
+// PUT - Update board member role/permissions (Admin only)
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const boardId = params.id
-    const { memberId, name, email, role, status, adminUserId } = await request.json()
+    const { userId, role, status, permissions, adminUserId } = await request.json()
 
-    if (!memberId || !adminUserId) {
+    if (!userId || !adminUserId) {
       return NextResponse.json({
-        error: 'Missing required fields: memberId and adminUserId'
+        error: 'Missing required fields: userId and adminUserId'
       }, { status: 400 })
     }
 
-    const storageDir = path.join(process.cwd(), 'storage')
-    const boardDir = path.join(storageDir, 'boards', boardId)
-    const boardDataPath = path.join(boardDir, 'board-data.json')
-
-    if (!existsSync(boardDataPath)) {
+    // Check if board exists
+    const board = await DatabaseService.getBoardById(boardId)
+    if (!board) {
       return NextResponse.json({
         error: 'Board not found',
         boardId
       }, { status: 404 })
     }
 
-    const boardDataRaw = await readFile(boardDataPath, 'utf8')
-    const boardData: BoardData = JSON.parse(boardDataRaw)
-
     // Check if requesting user is admin
-    const requestingUser = boardData.members?.find(m => m.id === adminUserId)
-    if (!requestingUser || requestingUser.role !== 'Admin') {
+    const isAdmin = await DatabaseService.isBoardAdmin(boardId, adminUserId)
+    if (!isAdmin) {
       return NextResponse.json({
-        error: 'Unauthorized. Only admins can update members'
+        error: 'Unauthorized. Only admins can update member details'
       }, { status: 403 })
     }
 
-    // Find member to update
-    const memberIndex = boardData.members?.findIndex(m => m.id === memberId) ?? -1
-    if (memberIndex === -1) {
+    // Check if member exists
+    const existingMember = await DatabaseService.getBoardMember(boardId, userId)
+    if (!existingMember) {
       return NextResponse.json({
         error: 'Member not found',
-        memberId
+        userId
       }, { status: 404 })
     }
 
-    const currentMember = boardData.members![memberIndex]
+    // Validate role if provided
+    if (role && !['Member', 'Admin', 'Viewer'].includes(role)) {
+      return NextResponse.json({
+        error: 'Invalid role. Must be "Member", "Admin", or "Viewer"'
+      }, { status: 400 })
+    }
+
+    // Validate status if provided
+    if (status && !['active', 'pending', 'inactive'].includes(status)) {
+      return NextResponse.json({
+        error: 'Invalid status. Must be "active", "pending", or "inactive"'
+      }, { status: 400 })
+    }
+
+    // Prepare updates
+    const updates: Partial<BoardMember> = {}
+    if (role) updates.role = role
+    if (status) updates.status = status
+    if (permissions) updates.permissions = permissions
+
+    // Update member
+    const success = await DatabaseService.updateBoardMember(boardId, userId, updates)
     
-    // Update member with provided fields
-    const updatedMember: BoardMember = {
-      ...currentMember,
-      ...(name && { name: name.trim() }),
-      ...(email && { email: email.toLowerCase().trim() }),
-      ...(role && ['Member', 'Admin'].includes(role) && { role }),
-      ...(status && ['active', 'pending', 'inactive'].includes(status) && { status })
+    if (!success) {
+      return NextResponse.json({
+        error: 'Failed to update member'
+      }, { status: 500 })
     }
 
-    // Update members array
-    const updatedMembers = [...boardData.members!]
-    updatedMembers[memberIndex] = updatedMember
-
-    const updatedBoardData: BoardData = {
-      ...boardData,
-      members: updatedMembers,
-      metadata: {
-        ...boardData.metadata,
-        lastUpdated: new Date().toISOString()
-      }
-    }
-
-    // Save updated data
-    await writeFile(boardDataPath, JSON.stringify(updatedBoardData, null, 2))
+    // Get updated member data with user details
+    const updatedMember = await DatabaseService.getBoardMember(boardId, userId)
+    const user = await DatabaseService.getUserById(userId)
 
     return NextResponse.json({
       success: true,
       message: 'Member updated successfully',
-      member: updatedMember,
-      boardId
+      member: updatedMember && user ? {
+        userId: updatedMember.userId,
+        role: updatedMember.role,
+        addedAt: updatedMember.addedAt,
+        addedBy: updatedMember.addedBy,
+        permissions: updatedMember.permissions,
+        status: updatedMember.status,
+        user: {
+          id: user.userId,
+          name: user.name,
+          email: user.email,
+          avatar: user.avatar,
+          company: user.company,
+          jobTitle: user.jobTitle,
+          status: user.status
+        }
+      } : null,
+      boardId,
+      storageInfo: {
+        source: 'mongodb',
+        userReferences: true
+      }
     })
 
   } catch (error) {

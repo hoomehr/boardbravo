@@ -9,7 +9,11 @@
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "setup:oauth": "node scripts/fix-oauth.js",
-    "debug:oauth": "echo 'Visit http://localhost:3000/api/debug-oauth to check your OAuth configuration'"
+    "debug:oauth": "echo 'Visit http://localhost:3000/api/debug-oauth to check your OAuth configuration'",
+    "migrate:mongodb": "node scripts/migrate-to-mongodb.js",
+    "migrate:users": "node scripts/migrate-members-to-users.js",
+    "test:mongodb": "node scripts/test-mongodb.js",
+    "test:boards": "node scripts/test-boards-api.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -29,9 +33,11 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "date-fns": "^4.1.0",
+    "dotenv": "^16.5.0",
     "framer-motion": "^10.16.16",
     "googleapis": "^129.0.0",
     "lucide-react": "^0.300.0",
+    "mongodb": "^6.16.0",
     "next": "14.0.4",
     "openai": "^4.20.1",
     "pdf-parse": "^1.1.1",
