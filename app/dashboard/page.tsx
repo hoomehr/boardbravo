@@ -15,7 +15,9 @@ import {
   TrendingUp,
   Plus,
   Mail,
-  Database
+  Database,
+  MessageSquare,
+  ArrowRight
 } from 'lucide-react'
 import Link from 'next/link'
 import { useDropzone } from 'react-dropzone'
@@ -39,7 +41,6 @@ import type {
   BoardWorkspace,
   BoardMember,
   SavedNote,
-  Integration,
   AIProviderStatus,
   AgentAction
 } from '@/types/dashboard'
@@ -58,6 +59,12 @@ export default function DashboardPage() {
   const [showManualAction, setShowManualAction] = useState(false)
   const [manualActionQuery, setManualActionQuery] = useState('')
   const [savedNotes, setSavedNotes] = useState<SavedNote[]>([])
+  
+  // Loading states
+  const [isLoadingBoard, setIsLoadingBoard] = useState(true)
+  const [isLoadingChats, setIsLoadingChats] = useState(true)
+  const [isLoadingNotes, setIsLoadingNotes] = useState(true)
+  const [showWelcomeScreen, setShowWelcomeScreen] = useState(false)
   
   // Board workspace management
   const [currentBoard, setCurrentBoard] = useState<BoardWorkspace | null>(null)
@@ -79,41 +86,6 @@ export default function DashboardPage() {
     email: '',
     role: ''
   })
-  
-  const [integrations, setIntegrations] = useState<Integration[]>([
-    {
-      id: 'gmail',
-      name: 'Gmail',
-      icon: <Mail className="w-4 h-4" />,
-      status: 'disconnected',
-      description: 'Connect to Gmail for email document analysis',
-      color: 'red'
-    },
-    {
-      id: 'google-drive',
-      name: 'Google Drive',
-      icon: <Database className="w-4 h-4" />,
-      status: 'disconnected',
-      description: 'Access board documents from Google Drive',
-      color: 'blue'
-    },
-    {
-      id: 'hubspot',
-      name: 'HubSpot',
-      icon: <Users className="w-4 h-4" />,
-      status: 'disconnected',
-      description: 'Connect CRM data for customer insights',
-      color: 'orange'
-    },
-    {
-      id: 'mcp-server',
-      name: 'MCP Server',
-      icon: <Building2 className="w-4 h-4" />,
-      status: 'disconnected',
-      description: 'Connect to enterprise data sources',
-      color: 'purple'
-    }
-  ])
 
   // Initialize on mount
   useEffect(() => {
@@ -121,9 +93,22 @@ export default function DashboardPage() {
     loadOrCreateBoard()
   }, [])
 
+  // Show welcome screen when there are no existing sessions
+  useEffect(() => {
+    if (!isLoadingChats && chatSessions.length === 0 && !currentSessionId) {
+      setShowWelcomeScreen(true)
+    } else {
+      setShowWelcomeScreen(false)
+    }
+  }, [isLoadingChats, chatSessions.length, currentSessionId])
+
   // Load or create board workspace
   const loadOrCreateBoard = async () => {
     try {
+      setIsLoadingBoard(true)
+      setIsLoadingChats(true)
+      setIsLoadingNotes(true)
+
       const boardId = 'board-demo'
       const response = await fetch(`/api/boards/${boardId}`)
       
@@ -148,6 +133,8 @@ export default function DashboardPage() {
             setDocuments(formattedDocs)
           }
           
+          setIsLoadingBoard(false)
+          
           // Load chat sessions from dedicated API for better reliability
           try {
             const chatResponse = await fetch(`/api/boards/${boardData.board?.id || 'board-demo'}/chat-sessions`)
@@ -165,6 +152,13 @@ export default function DashboardPage() {
                 }))
                 setChatSessions(formattedSessions)
                 
+                // Set the most recent session as current and load its messages
+                if (formattedSessions.length > 0) {
+                  const mostRecentSession = formattedSessions[0]
+                  setCurrentSessionId(mostRecentSession.id)
+                  await loadSessionMessages(mostRecentSession.id, boardData.board?.id || 'board-demo')
+                }
+                
                 console.log('Chat sessions loaded from dedicated API:', {
                   sessionsCount: formattedSessions.length,
                   sessions: formattedSessions.map((s: ChatSession) => ({
@@ -175,6 +169,13 @@ export default function DashboardPage() {
                 })
               } else {
                 console.log('No chat sessions found in dedicated API')
+                // Show welcome screen for new users
+                const welcomeSession = await createWelcomeSession()
+                if (welcomeSession) {
+                  setChatSessions([welcomeSession])
+                  setCurrentSessionId(welcomeSession.id)
+                  setChatMessages(welcomeSession.messages)
+                }
               }
             } else {
               console.error('Failed to load chat sessions from dedicated API')
@@ -190,6 +191,13 @@ export default function DashboardPage() {
                   }))
                 }))
                 setChatSessions(formattedSessions)
+                
+                if (formattedSessions.length > 0) {
+                  const mostRecentSession = formattedSessions[0]
+                  setCurrentSessionId(mostRecentSession.id)
+                  setChatMessages(mostRecentSession.messages)
+                }
+                
                 console.log('Chat sessions loaded from board data fallback:', formattedSessions.length)
               }
             }
@@ -207,8 +215,17 @@ export default function DashboardPage() {
                 }))
               }))
               setChatSessions(formattedSessions)
+              
+              if (formattedSessions.length > 0) {
+                const mostRecentSession = formattedSessions[0]
+                setCurrentSessionId(mostRecentSession.id)
+                setChatMessages(mostRecentSession.messages)
+              }
+              
               console.log('Chat sessions loaded from board data fallback after error:', formattedSessions.length)
             }
+          } finally {
+            setIsLoadingChats(false)
           }
           
           // Load saved notes from dedicated endpoint
@@ -240,6 +257,8 @@ export default function DashboardPage() {
               setSavedNotes(formattedNotes)
               console.log('Saved notes loaded from fallback:', formattedNotes.length)
             }
+          } finally {
+            setIsLoadingNotes(false)
           }
           
           console.log('Board loaded successfully:', {
@@ -252,12 +271,86 @@ export default function DashboardPage() {
         }
       } else {
         console.log('Board not found, creating new board...')
-        createNewBoard()
+        await createNewBoard()
       }
     } catch (error) {
       console.error('Failed to load board:', error)
-      createNewBoard()
+      await createNewBoard()
+    } finally {
+      setIsLoadingBoard(false)
+      setIsLoadingChats(false)
+      setIsLoadingNotes(false)
     }
+  }
+
+  // Load session messages
+  const loadSessionMessages = async (sessionId: string, boardId: string) => {
+    try {
+      const response = await fetch(`/api/boards/${boardId}/chat-sessions/${sessionId}`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.chatSession) {
+          const formattedMessages = data.chatSession.messages.map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          }))
+          setChatMessages(formattedMessages)
+          
+          // Update the session in state with loaded messages
+          setChatSessions(prevSessions => 
+            prevSessions.map(s => 
+              s.id === sessionId 
+                ? { ...s, messages: formattedMessages }
+                : s
+            )
+          )
+          
+          console.log(`Loaded ${formattedMessages.length} messages for session ${sessionId}`)
+        }
+      } else {
+        console.error('Failed to load session messages')
+        setChatMessages([])
+      }
+    } catch (error) {
+      console.error('Error loading session messages:', error)
+      setChatMessages([])
+    }
+  }
+
+  // Create welcome session for new users
+  const createWelcomeSession = async (): Promise<ChatSession | null> => {
+    try {
+      const sessionId = `welcome-${Date.now()}`
+      const response = await fetch(`/api/boards/${currentBoard?.id || 'board-demo'}/chat-sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Welcome to BoardBravo',
+          createdBy: currentUser.id,
+          sessionId: sessionId,
+          initialMessage: "👋 Welcome to BoardBravo!\n\nI'm your AI assistant for board governance and business intelligence. Here's how to get started:\n\n📁 **Upload Documents**: Add board materials, financial reports, or meeting notes\n🔗 **Connect Data Sources**: Link your business tools for real-time insights\n🤖 **Ask Questions**: Type @agent followed by your question for AI analysis\n📊 **Quick Actions**: Use the Quick Actions panel for common tasks\n📝 **Take Notes**: Save important insights and decisions\n\nWhat would you like to explore first?"
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.chatSession) {
+          return {
+            id: data.chatSession.id,
+            title: data.chatSession.title,
+            messages: data.chatSession.messages.map((msg: any) => ({
+              ...msg,
+              timestamp: new Date(msg.timestamp)
+            })),
+            createdAt: new Date(data.chatSession.createdAt),
+            updatedAt: new Date(data.chatSession.updatedAt)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to create welcome session:', error)
+    }
+    return null
   }
 
   // Create new board workspace
@@ -291,6 +384,14 @@ export default function DashboardPage() {
     try {
       await saveBoard(newBoard)
       console.log('New board created and saved:', newBoard.id)
+      
+      // Create welcome session for new board
+      const welcomeSession = await createWelcomeSession()
+      if (welcomeSession) {
+        setChatSessions([welcomeSession])
+        setCurrentSessionId(welcomeSession.id)
+        setChatMessages(welcomeSession.messages)
+      }
     } catch (error) {
       console.error('Failed to save new board:', error)
     }
@@ -410,35 +511,7 @@ export default function DashboardPage() {
         setChatMessages(session.messages)
       } else {
         // Load full messages from dedicated API
-        try {
-          const response = await fetch(`/api/boards/${currentBoard?.id || 'board-demo'}/chat-sessions/${sessionId}`)
-          if (response.ok) {
-            const data = await response.json()
-            if (data.success && data.chatSession) {
-              const formattedMessages = data.chatSession.messages.map((msg: any) => ({
-                ...msg,
-                timestamp: new Date(msg.timestamp)
-              }))
-              setChatMessages(formattedMessages)
-              
-              // Update the session in state with loaded messages
-              const updatedSessions = chatSessions.map(s => 
-                s.id === sessionId 
-                  ? { ...s, messages: formattedMessages }
-                  : s
-              )
-              setChatSessions(updatedSessions)
-              
-              console.log(`Loaded ${formattedMessages.length} messages for session ${sessionId}`)
-            }
-          } else {
-            console.error('Failed to load session messages')
-            setChatMessages([])
-          }
-        } catch (error) {
-          console.error('Error loading session messages:', error)
-          setChatMessages([])
-        }
+        await loadSessionMessages(sessionId, currentBoard?.id || 'board-demo')
       }
     }
   }, [chatSessions, currentBoard?.id])
@@ -550,7 +623,6 @@ export default function DashboardPage() {
 
     try {
       const readyDocuments = documents.filter(doc => doc.status === 'ready')
-      const connectedIntegrations = integrations.filter(i => i.status === 'connected')
       
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -558,7 +630,7 @@ export default function DashboardPage() {
         body: JSON.stringify({
           message: query,
           documents: readyDocuments,
-          integrations: connectedIntegrations,
+          integrations: [], // IntegrationsCard manages its own integrations
           isAgentMention: true,
           boardId: currentBoard?.id
         })
@@ -613,8 +685,8 @@ export default function DashboardPage() {
           ? { 
               ...session,
               messages: [...session.messages, errorResponse],
-              updatedAt: new Date()
-            }
+      updatedAt: new Date()
+    }
           : session
       )
       setChatSessions(updatedSessions)
@@ -1129,7 +1201,6 @@ export default function DashboardPage() {
 
     try {
       const readyDocuments = documents.filter(doc => doc.status === 'ready')
-      const connectedIntegrations = integrations.filter(i => i.status === 'connected')
       
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -1137,7 +1208,7 @@ export default function DashboardPage() {
         body: JSON.stringify({
           message: actionDescription,
           documents: readyDocuments,
-          integrations: connectedIntegrations,
+          integrations: [], // IntegrationsCard manages its own integrations
           isAgentAction: true,
           actionTitle: actionTitle,
           boardId: currentBoard?.id,
@@ -1541,6 +1612,70 @@ export default function DashboardPage() {
     )
   )
 
+  // Enhanced welcome screen component
+  const WelcomeScreen = () => (
+    <div className="h-full flex items-center justify-center p-8">
+      <div className="text-center max-w-2xl">
+        <div className="mb-8">
+          <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
+            <span className="text-3xl">🚀</span>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Welcome to BoardBravo</h2>
+          <p className="text-gray-600 text-lg leading-relaxed">
+            Your AI-powered board governance platform. Get started by exploring recent conversations or creating a new one.
+          </p>
+        </div>
+
+        {/* Recent Conversations Preview */}
+        {chatSessions.length > 0 && (
+          <div className="mb-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Conversations</h3>
+            <div className="grid gap-3 max-w-lg mx-auto">
+              {chatSessions.slice(0, 3).map((session) => (
+                <button
+                  key={session.id}
+                  onClick={() => switchToSession(session.id)}
+                  className="flex items-center space-x-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-200 hover:border-gray-300 transition-all duration-200 text-left"
+                >
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <MessageSquare className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-medium text-gray-900 truncate">{session.title}</h4>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {formatDistanceToNow(session.updatedAt, { addSuffix: true })}
+                    </p>
+                  </div>
+                  <div className="text-gray-400">
+                    <ArrowRight className="w-4 h-4" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Quick Start Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-lg mx-auto">
+          <button
+            onClick={createNewChatSession}
+            className="flex items-center justify-center space-x-2 p-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors shadow-lg"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="font-medium">New Conversation</span>
+          </button>
+          <button
+            onClick={handleFileUpload}
+            className="flex items-center justify-center space-x-2 p-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-colors border border-gray-300"
+          >
+            <Database className="w-5 h-5" />
+            <span className="font-medium">Upload Documents</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-white">
       <Navbar currentPage="dashboard" />
@@ -1557,6 +1692,7 @@ export default function DashboardPage() {
               chatMessages={chatMessages}
               isClient={isClient}
               isAdmin={isAdmin}
+              isLoading={isLoadingChats}
               onSwitchToSession={switchToSession}
               onDeleteSession={deleteSession}
               onUpdateSessionTitle={updateSessionTitle}
@@ -1570,10 +1706,10 @@ export default function DashboardPage() {
             />
             
             <IntegrationsCard
-              integrations={integrations}
+              integrations={[]}
               onConnect={handleIntegrationConnect}
             />
-              </div>
+          </div>
 
           {/* Middle Panel: Board Management Cards */}
           <div className="lg:col-span-1 space-y-4">
@@ -1592,6 +1728,7 @@ export default function DashboardPage() {
             <NoteBoardCard
               savedNotes={savedNotes}
               isAdmin={isAdmin}
+              isLoading={isLoadingNotes}
               onSaveNote={saveNote}
               onUpdateNote={updateNote}
               onDeleteNote={deleteNote}
@@ -1604,29 +1741,35 @@ export default function DashboardPage() {
               savedNotes={savedNotes}
               onCreateAction={handleQuickAction}
             />
-            </div>
+          </div>
 
           {/* Right Panel: Chat Interface */}
           <div className="lg:col-span-2">
-            <ChatInterfaceCard
-              chatMessages={chatMessages}
-              currentMessage={currentMessage}
-              isProcessing={isProcessing}
-              processingAction={processingAction}
-              boardMembers={boardMembers}
-              currentUser={currentUser}
-              currentSessionId={currentSessionId}
-              documents={documents}
-              integrations={integrations}
-              isClient={isClient}
-              onCreateNewSession={createNewChatSession}
-              onSendMessage={sendMemberMessage}
-              onMessageChange={handleChatInputChange}
-              onAgentAction={handleAgentAction}
-              onShowManualAction={() => setShowManualAction(true)}
-              onSaveMessageAsNote={saveMessageAsNote}
-              getAgentActions={getAgentActions}
-            />
+            {showWelcomeScreen ? (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 h-96">
+                <WelcomeScreen />
+              </div>
+            ) : (
+              <ChatInterfaceCard
+                chatMessages={chatMessages}
+                currentMessage={currentMessage}
+                isProcessing={isProcessing}
+                processingAction={processingAction}
+                boardMembers={boardMembers}
+                currentUser={currentUser}
+                currentSessionId={currentSessionId}
+                documents={documents}
+                integrations={[]}
+                isClient={isClient}
+                onCreateNewSession={createNewChatSession}
+                onSendMessage={sendMemberMessage}
+                onMessageChange={handleChatInputChange}
+                onAgentAction={handleAgentAction}
+                onShowManualAction={() => setShowManualAction(true)}
+                onSaveMessageAsNote={saveMessageAsNote}
+                getAgentActions={getAgentActions}
+              />
+            )}
           </div>
         </div>
       </div>

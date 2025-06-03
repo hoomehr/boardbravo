@@ -1,33 +1,18 @@
 'use client'
 
 import { useState } from 'react'
-import { MessageSquare, Plus, Trash2, Edit2, Check, X } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
-
-interface ChatMessage {
-  id: string
-  type: 'user' | 'assistant'
-  content: string
-  timestamp: Date
-  charts?: any[]
-  summary?: any
-}
-
-interface ChatSession {
-  id: string
-  title: string
-  messages: ChatMessage[]
-  createdAt: Date
-  updatedAt: Date
-}
+import { MessageSquare, Calendar, MoreVertical, Trash2, Edit3, Plus, Clock, Loader2 } from 'lucide-react'
+import { format, formatDistanceToNow } from 'date-fns'
+import type { ChatSession, BoardWorkspace, ChatMessage } from '@/types/dashboard'
 
 interface ChatHistoryCardProps {
   chatSessions: ChatSession[]
   currentSessionId: string | null
-  currentBoard: any
+  currentBoard: BoardWorkspace | null
   chatMessages: ChatMessage[]
   isClient: boolean
   isAdmin: boolean
+  isLoading?: boolean
   onSwitchToSession: (sessionId: string) => void
   onDeleteSession: (sessionId: string) => void
   onUpdateSessionTitle: (sessionId: string, newTitle: string) => void
@@ -40,137 +25,260 @@ export default function ChatHistoryCard({
   chatMessages,
   isClient,
   isAdmin,
+  isLoading = false,
   onSwitchToSession,
   onDeleteSession,
   onUpdateSessionTitle
 }: ChatHistoryCardProps) {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
-  const [editingTitle, setEditingTitle] = useState('')
+  const [editTitle, setEditTitle] = useState('')
+  const [showMoreOptions, setShowMoreOptions] = useState<string | null>(null)
 
-  const startEditing = (sessionId: string, currentTitle: string) => {
-    setEditingSessionId(sessionId)
-    setEditingTitle(currentTitle)
+  const handleEditStart = (session: ChatSession) => {
+    setEditingSessionId(session.id)
+    setEditTitle(session.title)
+    setShowMoreOptions(null)
   }
 
-  const saveTitle = () => {
-    if (editingSessionId && editingTitle.trim()) {
-      onUpdateSessionTitle(editingSessionId, editingTitle.trim())
+  const handleEditSave = () => {
+    if (editingSessionId && editTitle.trim()) {
+      onUpdateSessionTitle(editingSessionId, editTitle.trim())
     }
     setEditingSessionId(null)
-    setEditingTitle('')
+    setEditTitle('')
   }
 
-  const cancelEditing = () => {
+  const handleEditCancel = () => {
     setEditingSessionId(null)
-    setEditingTitle('')
+    setEditTitle('')
   }
+
+  const handleDeleteSession = (sessionId: string) => {
+    const confirmDelete = confirm('Are you sure you want to delete this conversation?')
+    if (confirmDelete) {
+      onDeleteSession(sessionId)
+    }
+    setShowMoreOptions(null)
+  }
+
+  // Loading skeleton component
+  const LoadingSkeleton = () => (
+    <div className="space-y-3">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="animate-pulse">
+          <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50">
+            <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">
+              <div className="w-4 h-4 bg-gray-300 rounded"></div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="h-3 bg-gray-300 rounded w-3/4 mb-2"></div>
+              <div className="h-2 bg-gray-200 rounded w-1/2"></div>
+            </div>
+            <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+
+  // Loading state for individual session
+  const SessionLoadingSkeleton = () => (
+    <div className="animate-pulse">
+      <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50">
+        <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">
+          <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="h-3 bg-gray-300 rounded w-3/4 mb-2"></div>
+          <div className="h-2 bg-gray-200 rounded w-1/2"></div>
+        </div>
+        <div className="w-4 h-4 bg-gray-300 rounded"></div>
+      </div>
+    </div>
+  )
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-gray-900">Chat History</h2>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
-          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-            {chatSessions.length} sessions
-          </span>
-          <MessageSquare className="w-4 h-4 text-blue-600" />
+          <MessageSquare className="w-4 h-4 text-gray-600" />
+          <h2 className="text-sm font-semibold text-gray-900">Chat History</h2>
+          {isLoading ? (
+            <div className="flex items-center space-x-2">
+              <Loader2 className="w-3 h-3 text-blue-600 animate-spin" />
+              <span className="text-xs text-blue-600">Loading...</span>
+            </div>
+          ) : (
+            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+              {chatSessions.length} sessions
+            </span>
+          )}
         </div>
-      </div>
-
-      <div className="space-y-2 max-h-80 overflow-y-auto">
-        {chatSessions.map((session) => (
-          <div
-            key={session.id}
-            className={`p-2 rounded-lg border cursor-pointer transition-colors hover:bg-gray-50 ${
-              currentSessionId === session.id ? 'bg-blue-50 border-blue-200' : 'border-gray-200'
-            }`}
-            onClick={() => !editingSessionId && onSwitchToSession(session.id)}
+        {!isLoading && (
+          <button
+            onClick={() => {/* This will be handled by parent */}}
+            className="text-blue-600 hover:text-blue-700 transition-colors p-1"
+            title="New conversation"
           >
-            <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                {editingSessionId === session.id ? (
-                  <div className="flex items-center space-x-1">
-                    <input
-                      type="text"
-                      value={editingTitle}
-                      onChange={(e) => setEditingTitle(e.target.value)}
-                      className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') saveTitle()
-                        if (e.key === 'Escape') cancelEditing()
-                      }}
-                      autoFocus
-                    />
-                    <button
-                      onClick={saveTitle}
-                      className="p-1 text-green-600 hover:text-green-700"
-                    >
-                      <Check className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={cancelEditing}
-                      className="p-1 text-gray-400 hover:text-gray-600"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <h3 className="text-xs font-medium text-gray-900 truncate">{session.title}</h3>
-                )}
-              </div>
-              
-              {!editingSessionId && (
-                <div className="flex items-center space-x-1 ml-2">
-                  {isAdmin && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        startEditing(session.id, session.title)
-                      }}
-                      className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
-                      title="Edit title"
-                    >
-                      <Edit2 className="w-3 h-3" />
-                    </button>
-                  )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onDeleteSession(session.id)
-                    }}
-                    className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                    title="Delete session"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              )}
-            </div>
-            
-            <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
-              <span>{session.messages.length} messages</span>
-              <span>{formatDistanceToNow(session.updatedAt, { addSuffix: true })}</span>
-            </div>
-          </div>
-        ))}
+            <Plus className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
-      {chatSessions.length === 0 && (
-        <div className="text-center py-6">
-          <MessageSquare className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-500 text-xs">No chat sessions yet</p>
-          <p className="text-gray-400 text-xs mt-1">Start a conversation to create your first session</p>
-        </div>
-      )}
+      {/* Loading State */}
+      {isLoading ? (
+        <LoadingSkeleton />
+      ) : (
+        <>
+          {/* Chat Sessions List */}
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {chatSessions.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <MessageSquare className="w-6 h-6 text-blue-600" />
+                </div>
+                <p className="text-gray-500 text-sm font-medium">No conversations yet</p>
+                <p className="text-gray-400 text-xs mt-1">Start a new chat to begin</p>
+              </div>
+            ) : (
+              chatSessions.map((session) => (
+                <div key={session.id} className="relative group">
+                  <div
+                    onClick={() => onSwitchToSession(session.id)}
+                    className={`relative p-3 rounded-lg border transition-all duration-200 cursor-pointer hover:shadow-sm ${
+                      currentSessionId === session.id
+                        ? 'border-blue-200 bg-blue-50 shadow-sm'
+                        : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center space-x-3 flex-1 min-w-0">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                          currentSessionId === session.id ? 'bg-blue-100' : 'bg-white'
+                        }`}>
+                          <MessageSquare className={`w-4 h-4 ${
+                            currentSessionId === session.id ? 'text-blue-600' : 'text-gray-600'
+                          }`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          {editingSessionId === session.id ? (
+                            <div className="space-y-2">
+                              <input
+                                type="text"
+                                value={editTitle}
+                                onChange={(e) => setEditTitle(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleEditSave()
+                                  if (e.key === 'Escape') handleEditCancel()
+                                }}
+                                className="w-full text-xs font-medium bg-white border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                autoFocus
+                              />
+                              <div className="flex space-x-1">
+                                <button
+                                  onClick={handleEditSave}
+                                  className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={handleEditCancel}
+                                  className="text-xs bg-gray-500 text-white px-2 py-1 rounded hover:bg-gray-600"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <h3 className="text-xs font-medium text-gray-900 truncate">
+                                {session.title}
+                              </h3>
+                              <div className="flex items-center space-x-2 mt-1">
+                                <span className="text-xs text-gray-500 flex items-center">
+                                  <Calendar className="w-3 h-3 mr-1" />
+                                  {isClient ? formatDistanceToNow(session.updatedAt, { addSuffix: true }) : 'Recently'}
+                                </span>
+                                {session.messages && session.messages.length > 0 && (
+                                  <span className="text-xs bg-white bg-opacity-60 text-gray-600 px-1 rounded">
+                                    {session.messages.length} messages
+                                  </span>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
 
-      {isClient && (
-        <div className="mt-3 pt-2 border-t border-gray-200">
-          <div className="text-xs text-gray-500">
-            Debug: Current session ID: {currentSessionId || 'none'} | 
-            Total sessions: {chatSessions.length} | 
-            Current messages: {chatMessages.length}
+                      {/* Options Menu */}
+                      {editingSessionId !== session.id && isAdmin && (
+                        <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setShowMoreOptions(showMoreOptions === session.id ? null : session.id)
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white hover:shadow-sm rounded"
+                          >
+                            <MoreVertical className="w-3 h-3 text-gray-500" />
+                          </button>
+
+                          {showMoreOptions === session.id && (
+                            <div className="absolute right-0 top-6 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1 min-w-[120px]">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleEditStart(session)
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                              >
+                                <Edit3 className="w-3 h-3" />
+                                <span>Rename</span>
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeleteSession(session.id)
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>Delete</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Active Session Indicator */}
+                    {currentSessionId === session.id && (
+                      <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r"></div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
-        </div>
+
+          {/* Quick Stats */}
+          {chatSessions.length > 0 && (
+            <div className="mt-4 pt-3 border-t border-gray-200">
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>
+                  {chatSessions.length} conversation{chatSessions.length !== 1 ? 's' : ''}
+                </span>
+                <div className="flex items-center space-x-1">
+                  <Clock className="w-3 h-3" />
+                  <span>
+                    Last: {isClient && chatSessions[0] ? formatDistanceToNow(chatSessions[0].updatedAt, { addSuffix: true }) : 'Recently'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
