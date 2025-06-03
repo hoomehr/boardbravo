@@ -29,6 +29,7 @@ import IntegrationsCard from '@/components/dashboard/IntegrationsCard'
 import ChatInterfaceCard from '@/components/dashboard/ChatInterfaceCard'
 import BoardMembersCard from '@/components/dashboard/BoardMembersCard'
 import NoteBoardCard from '@/components/dashboard/NoteBoardCard'
+import QuickActionsCard from '@/components/dashboard/QuickActionsCard'
 
 // Import shared types
 import type {
@@ -862,6 +863,24 @@ export default function DashboardPage() {
     await saveNotesToBackend(updatedNotes)
   }
 
+  // Quick Actions handler
+  const handleQuickAction = async (actionType: string, details: any) => {
+    console.log('Quick action executed:', { actionType, details })
+    
+    // In a real application, this would integrate with email services, calendar APIs, etc.
+    // For now, we'll create a note to track the action
+    const actionNote: Omit<SavedNote, 'id' | 'createdAt' | 'updatedAt'> = {
+      title: `Quick Action: ${details.subject}`,
+      content: `Action Type: ${actionType}\n\nSubject: ${details.subject}\n\nMessage:\n${details.message}\n\nRecipients: ${details.recipients.join(', ')}\n\nPriority: ${details.priority}\nDue Date: ${details.dueDate || 'Not specified'}`,
+      category: 'general',
+      source: `Quick Action by ${currentUser.name}`,
+      isPinned: details.priority === 'urgent' || details.priority === 'high',
+      tags: ['quick-action', actionType, details.priority]
+    }
+    
+    await saveNote(actionNote)
+  }
+
   // Save notes to backend
   const saveNotesToBackend = async (notes: SavedNote[]) => {
     try {
@@ -1577,6 +1596,13 @@ export default function DashboardPage() {
               onUpdateNote={updateNote}
               onDeleteNote={deleteNote}
               onTogglePin={togglePinNote}
+            />
+            <QuickActionsCard
+              currentUser={currentUser}
+              boardMembers={boardMembers}
+              isAdmin={isAdmin}
+              savedNotes={savedNotes}
+              onCreateAction={handleQuickAction}
             />
             </div>
 
